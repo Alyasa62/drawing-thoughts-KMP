@@ -41,12 +41,18 @@ import org.example.project.presentation.whiteboard.component.TopBar
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.max
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
 
 @Composable
 fun WhiteBoardScreen(
     modifier: Modifier = Modifier,
     state: WhiteBoardState,
-    onEvent: (WhiteBoardEvent) -> Unit
+    onEvent: (WhiteBoardEvent) -> Unit,
+    imageSaver: org.example.project.utils.PlatformImageSaver
 ) {
     var showStrokeDialog by remember { mutableStateOf(false) }
     var showColorDialog by remember { mutableStateOf(false) }
@@ -88,11 +94,25 @@ fun WhiteBoardScreen(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        DrawingCanvas(
-            modifier = Modifier.fillMaxSize(),
-            state = state,
-            onEvent = onEvent
-        )
+        val coroutineScope = rememberCoroutineScope()
+        val graphicsLayer = rememberGraphicsLayer()
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawWithContent {
+                    graphicsLayer.record {
+                        this@drawWithContent.drawContent()
+                    }
+                    drawLayer(graphicsLayer)
+                }
+        ) {
+            DrawingCanvas(
+                modifier = Modifier.fillMaxSize(),
+                state = state,
+                onEvent = onEvent
+            )
+        }
 
         TopBar(
             modifier = Modifier
@@ -104,7 +124,15 @@ fun WhiteBoardScreen(
             onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
             onDrawingColorClick = { showColorDialog = true },
             onBackgroundClick = { showBackgroundDialog = true },
-            onSettingsClick = { }
+            onSettingsClick = { },
+            onSaveClick = {
+                coroutineScope.launch {
+                    val bitmap = graphicsLayer.toImageBitmap()
+                    val result = imageSaver.saveImage(bitmap)
+                    // TODO: Show Snackbar with result
+                    println("Save Result: $result")
+                }
+            }
         )
         
         DrawingToolFAB(

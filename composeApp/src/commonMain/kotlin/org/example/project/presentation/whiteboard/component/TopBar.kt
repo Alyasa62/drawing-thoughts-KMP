@@ -37,7 +37,8 @@ fun TopBar(
     onRedoIconClick: () -> Unit,
     onDrawingColorClick: () -> Unit,
     onBackgroundClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onSaveClick: () -> Unit
 ) {
     var isMoreOptionMenuOpened by rememberSaveable {
         mutableStateOf(false)
@@ -84,7 +85,8 @@ fun TopBar(
                 onStrokeWidthClick = { onStrokeWidthClick() },
                 onDrawingColorClick = { onDrawingColorClick() },
                 onBackgroundClick = { onBackgroundClick() },
-                onSettingsClick = { onSettingsClick() }
+                onSettingsClick = { onSettingsClick() },
+                onSaveClick = { onSaveClick() }
             )
         }
     }
@@ -98,9 +100,8 @@ private fun MoreOptionsMenu (
     onStrokeWidthClick: () -> Unit,
     onDrawingColorClick: () -> Unit,
     onBackgroundClick: () -> Unit,
-    onSettingsClick: () -> Unit
-
-
+    onSettingsClick: () -> Unit,
+    onSaveClick: () -> Unit
 ) {
     DropdownMenu(
         expanded = isExpended,
@@ -145,6 +146,16 @@ private fun MoreOptionsMenu (
             leadingIcon = {
                 Icon(imageVector= Icons.Default.Settings, contentDescription = "Stroke Width")
 
+            }
+        )
+        DropdownMenuItem(
+            text = { Text(text = "Save Image") },
+            onClick = { 
+                onSaveClick()
+                onMenuDismiss()
+            },
+            leadingIcon = {
+                Icon(imageVector= Icons.Default.Settings, contentDescription = "Save Image")
             }
         )
 

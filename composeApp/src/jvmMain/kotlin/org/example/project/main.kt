@@ -9,6 +9,6 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "DrawingThoughts",
     ) {
-        App()
+        App(org.example.project.utils.DesktopImageSaver())
     }
 }

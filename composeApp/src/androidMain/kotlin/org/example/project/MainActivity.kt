@@ -12,8 +12,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         org.example.project.data.local.AndroidWrappedContext.context = applicationContext
 
+        val imageSaver = org.example.project.utils.AndroidImageSaver(applicationContext)
         setContent {
-            App()
+            App(imageSaver)
         }
     }
 }
