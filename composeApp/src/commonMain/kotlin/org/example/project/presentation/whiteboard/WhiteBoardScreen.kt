@@ -55,43 +55,6 @@ fun WhiteBoardScreen(
     onEvent: (WhiteBoardEvent) -> Unit,
     imageSaver: org.example.project.utils.PlatformImageSaver
 ) {
-    var showStrokeDialog by remember { mutableStateOf(false) }
-    var showColorDialog by remember { mutableStateOf(false) }
-    var showBackgroundDialog by remember { mutableStateOf(false) }
-
-    if (showStrokeDialog) {
-        StrokeWidthDialog(
-            currentWidth = state.currentStrokeWidth,
-            onDismiss = { showStrokeDialog = false },
-            onConfirm = { width ->
-                onEvent(WhiteBoardEvent.OnStrokeWidthChange(width))
-                showStrokeDialog = false
-            }
-        )
-    }
-
-    if (showColorDialog) {
-        ColorPickerDialog(
-            currentColor = state.currentColor,
-            onDismiss = { showColorDialog = false },
-            onConfirm = { color ->
-                onEvent(WhiteBoardEvent.OnColorChange(color))
-                showColorDialog = false
-            }
-        )
-    }
-
-    if (showBackgroundDialog) {
-        ColorPickerDialog(
-            currentColor = state.canvasBackgroundColor,
-            onDismiss = { showBackgroundDialog = false },
-            onConfirm = { color ->
-                onEvent(WhiteBoardEvent.OnBackgroundChange(color))
-                showBackgroundDialog = false
-            }
-        )
-    }
-
     val viewportZoom = state.zoom
     val viewportPan = state.pan
 
@@ -176,21 +139,21 @@ fun WhiteBoardScreen(
                 )
             }
 
-            // 3. HUD Layers (Static on top)
+             // 3. HUD Layers (Static on top)
             androidx.compose.animation.AnimatedVisibility(
-                visible = isInteracting || state.isDrawingToolCardVisible, // Also show if tools are open (optional)
+                visible = isInteracting || state.isDrawingToolCardVisible, 
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 100.dp, end = 20.dp)
+                    .padding(bottom = 250.dp, end = 20.dp) // Moved up to avoid Inspector
             ) {
                 org.example.project.presentation.whiteboard.component.Minimap(
                     modifier = Modifier.size(150.dp),
                     shapes = state.shapes,
                     viewportZoom = viewportZoom,
                     viewportPan = viewportPan,
-                    viewportSize = Size(1000f, 2000f), // TODO: Get real size via BoxWithConstraints
+                    viewportSize = Size(1000f, 2000f), 
                     onJumpTo = { newPan ->
                         onEvent(WhiteBoardEvent.OnViewportChange(viewportZoom, newPan))
                     }
@@ -201,12 +164,9 @@ fun WhiteBoardScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(20.dp),
-                onStrokeWidthClick = { showStrokeDialog = true },
                 onHomeIconClick = { },
                 onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
                 onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
-                onDrawingColorClick = { showColorDialog = true },
-                onBackgroundClick = { showBackgroundDialog = true },
                 onSettingsClick = { },
                 onSaveClick = {
                     coroutineScope.launch {
@@ -217,10 +177,20 @@ fun WhiteBoardScreen(
                 }
             )
 
+            // UNIFIED INSPECTOR (Responsive)
+            // It overlays everything at the appropriate position
+             org.example.project.presentation.whiteboard.component.inspector.ResponsiveInspector(
+                state = state,
+                onEvent = onEvent,
+                modifier = Modifier.fillMaxSize() 
+                // Passed fillMaxSize so BoxWithConstraints sees full screen size 
+                // and aligns itself internally (Bottom or Right)
+            )
+
             DrawingToolFAB(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(20.dp),
+                    .padding(bottom = 120.dp, end = 20.dp), // Adjust for Inspector height
                 isVisible = !state.isDrawingToolCardVisible,
                 selectedTool = state.selectedTool,
                 onClick = { onEvent(WhiteBoardEvent.OnFABClick) }
@@ -229,11 +199,10 @@ fun WhiteBoardScreen(
             DrawingToolCard(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(20.dp),
+                    .padding(bottom = 180.dp), // Push up above Inspector (approx)
                 selectedTool = state.selectedTool,
                 onToolSelected = { tool -> 
-                    // Toggle Logic: If clicking selected, switch to HAND. Else select new.
-                    if (state.selectedTool == tool) {
+                   if (state.selectedTool == tool) {
                         onEvent(WhiteBoardEvent.OnDrawingToolSelected(DrawingTool.HAND))
                     } else {
                         onEvent(WhiteBoardEvent.OnDrawingToolSelected(tool)) 

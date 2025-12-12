@@ -31,12 +31,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 @Composable
 fun TopBar(
     modifier: Modifier = Modifier,
-    onStrokeWidthClick: () -> Unit,
     onHomeIconClick: () -> Unit,
     onUndoIconClick: () -> Unit,
     onRedoIconClick: () -> Unit,
-    onDrawingColorClick: () -> Unit,
-    onBackgroundClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
@@ -82,9 +79,6 @@ fun TopBar(
             MoreOptionsMenu(
                 isExpended = isMoreOptionMenuOpened,
                 onMenuDismiss = { isMoreOptionMenuOpened = false },
-                onStrokeWidthClick = { onStrokeWidthClick() },
-                onDrawingColorClick = { onDrawingColorClick() },
-                onBackgroundClick = { onBackgroundClick() },
                 onSettingsClick = { onSettingsClick() },
                 onSaveClick = { onSaveClick() }
             )
@@ -97,9 +91,6 @@ private fun MoreOptionsMenu (
     modifier: Modifier = Modifier,
     isExpended: Boolean,
     onMenuDismiss: () -> Unit,
-    onStrokeWidthClick: () -> Unit,
-    onDrawingColorClick: () -> Unit,
-    onBackgroundClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
@@ -109,42 +100,12 @@ private fun MoreOptionsMenu (
         modifier = modifier
     ) {
         DropdownMenuItem(
-            text = { Text(text = "Stroke Width") },
-            onClick = { onStrokeWidthClick()
-                      onMenuDismiss()
-                      },
-            leadingIcon = {
-                Icon(imageVector= Icons.Default.Edit, contentDescription = "Stroke Width")
-
-            }
-        )
-        DropdownMenuItem(
-            text = { Text(text = "Drawing Colors") },
-            onClick = { onDrawingColorClick()
-                onMenuDismiss()
-            },
-            leadingIcon = {
-                Icon(imageVector= Icons.Default.PlayArrow, contentDescription = "Stroke Width")
-
-            }
-        )
-        DropdownMenuItem(
-            text = { Text(text = "Background Color") },
-            onClick = { onBackgroundClick()
-                onMenuDismiss()
-            },
-            leadingIcon = {
-                Icon(imageVector= Icons.Default.PlayArrow, contentDescription = "Stroke Width")
-
-            }
-        )
-        DropdownMenuItem(
             text = { Text(text = "Setting") },
             onClick = { onSettingsClick()
                 onMenuDismiss()
             },
             leadingIcon = {
-                Icon(imageVector= Icons.Default.Settings, contentDescription = "Stroke Width")
+                Icon(imageVector= Icons.Default.Settings, contentDescription = "Settings")
 
             }
         )
@@ -158,7 +119,6 @@ private fun MoreOptionsMenu (
                 Icon(imageVector= Icons.Default.Settings, contentDescription = "Save Image")
             }
         )
-
     }
 }
 
