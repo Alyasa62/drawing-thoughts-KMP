@@ -6,12 +6,17 @@ import org.example.project.domain.model.DrawingTool
 import org.example.project.domain.model.DrawnShape
 
 data class WhiteBoardState(
-    val selectedTool: DrawingTool = DrawingTool.PEN,
+    val selectedTool: DrawingTool = DrawingTool.HAND,
     val isDrawingToolCardVisible: Boolean = false,
     val selectedShapeId: String? = null,
     val currentShape: DrawnShape? = null,
     val shapes: List<DrawnShape> = emptyList(),
     val startingOffset: Offset? = null,
+
+    // Viewport State (Camera)
+    val zoom: Float = 1f,
+    val pan: Offset = Offset.Zero,
+
     val currentStrokeWidth: Float = 10f,
     val currentColor: Color = Color.Black,
     val canvasBackgroundColor: Color = Color.White,

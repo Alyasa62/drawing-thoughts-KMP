@@ -37,5 +37,5 @@ enum class DrawingTool(
     RECTANGLE_FILLED(Res.drawable.ic_rectangle_filled),
     TRIANGLE_OUTLINED(Res.drawable.ic_triangle_outline),
     TRIANGLE_FILLED(Res.drawable.ic_triangle_filled),
-
+    HAND(Res.drawable.ic_selector_cursor)
 }

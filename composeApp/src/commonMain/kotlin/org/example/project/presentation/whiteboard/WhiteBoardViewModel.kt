@@ -178,6 +178,14 @@ class WhiteBoardViewModel : ViewModel() {
             WhiteBoardEvent.OnShapeTransformEnd -> {
                 applyTransientTransform()
             }
+            is WhiteBoardEvent.OnViewportChange -> {
+                _state.update { 
+                    it.copy(
+                        zoom = event.zoom,
+                        pan = event.pan
+                    )
+                }
+            }
         }
     }
 
