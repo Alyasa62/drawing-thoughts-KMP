@@ -31,13 +31,22 @@ import org.jetbrains.compose.resources.painterResource
 fun CompactDock(
     modifier: Modifier = Modifier,
     selectedTool: DrawingTool,
-    onToolSelect: (DrawingTool) -> Unit,
-    onStrokeWidthChange: (Float) -> Unit, // Delta change
+    onToolSelect: (DrawingTool) -> Unit, // Always non-null (pass HAND for view mode)
+    onStrokeWidthChange: (Float) -> Unit, 
 ) {
+    // Helper to toggle: If clicked == current, select HAND (null equivalent for drawing)
+    fun toggleTool(tool: DrawingTool) {
+        if (selectedTool == tool) {
+            onToolSelect(DrawingTool.HAND)
+        } else {
+            onToolSelect(tool)
+        }
+    }
+
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50), // Fully rounded capsule
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), // Glassmorphism base
+        shape = RoundedCornerShape(50), 
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), 
         tonalElevation = 8.dp,
         shadowElevation = 8.dp
     ) {
@@ -50,23 +59,18 @@ fun CompactDock(
             DockIcon(
                 tool = DrawingTool.SELECTOR,
                 isSelected = selectedTool == DrawingTool.SELECTOR,
-                onClick = { onToolSelect(DrawingTool.SELECTOR) }
+                onClick = { toggleTool(DrawingTool.SELECTOR) }
             )
 
-            // 2. PEN (With Power Gesture)
-            Box(
-                contentAlignment = Alignment.Center
-            ) {
+            // 2. PEN 
+            Box(contentAlignment = Alignment.Center) {
                  DockIcon(
                     tool = DrawingTool.PEN,
                     isSelected = selectedTool == DrawingTool.PEN,
-                    onClick = { onToolSelect(DrawingTool.PEN) },
+                    onClick = { toggleTool(DrawingTool.PEN) },
                     modifier = Modifier.pointerInput(Unit) {
                         detectVerticalDragGestures { change, dragAmount ->
                             change.consume()
-                            // Drag Up (Negative Y) = Increase Width
-                            // Drag Down (Positive Y) = Decrease Width
-                            // Sensitivity: 0.5f per pixel?
                             val delta = -dragAmount / 5f 
                             onStrokeWidthChange(delta)
                         }
@@ -78,22 +82,21 @@ fun CompactDock(
              DockIcon(
                 tool = DrawingTool.HIGHLIGHTER,
                 isSelected = selectedTool == DrawingTool.HIGHLIGHTER,
-                onClick = { onToolSelect(DrawingTool.HIGHLIGHTER) }
+                onClick = { toggleTool(DrawingTool.HIGHLIGHTER) }
             )
 
              // 4. ERASER
              DockIcon(
                 tool = DrawingTool.ERASER,
                 isSelected = selectedTool == DrawingTool.ERASER,
-                onClick = { onToolSelect(DrawingTool.ERASER) }
+                onClick = { toggleTool(DrawingTool.ERASER) }
             )
             
-            // 5. SHAPES (Generic placeholder for now, or just Rectangle)
             // 5. SHAPES
              DockIcon(
                 tool = DrawingTool.RECTANGLE_OUTLINED,
                 isSelected = selectedTool.isShape(),
-                onClick = { onToolSelect(DrawingTool.RECTANGLE_OUTLINED) } 
+                onClick = { toggleTool(DrawingTool.RECTANGLE_OUTLINED) } 
             )
         }
     }
@@ -107,7 +110,8 @@ private fun DockIcon(
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-    val iconColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    // Colorful Icons: Use Unspecified when not selected to show original SVG colors
+    val iconColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.Unspecified
 
     Box(
         modifier = modifier

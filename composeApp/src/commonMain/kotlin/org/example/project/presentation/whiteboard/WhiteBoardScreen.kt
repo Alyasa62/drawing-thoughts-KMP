@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CircleShape
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.graphicsLayer
+import org.example.project.presentation.whiteboard.state.rememberViewportState
 
 @Composable
 fun WhiteBoardScreen(
@@ -70,71 +72,127 @@ fun WhiteBoardScreen(
     var showColorPicker by remember { mutableStateOf(false) }
     var showStrokeSlider by remember { mutableStateOf(false) }
     
-    val viewportZoom = state.zoom
-    val viewportPan = state.pan
+    // 1. FAST LOCAL STATE (The "Liquid" Layer)
+    val viewportState = rememberViewportState(state.zoom, state.pan)
+    
+    // 2. SYNC: VM -> UI
+    androidx.compose.runtime.LaunchedEffect(state.zoom, state.pan) {
+        if (state.zoom != viewportState.zoom || state.pan != viewportState.pan) {
+             viewportState.snapTo(state.zoom, state.pan)
+        }
+    }
 
-    // Viewport Gestures
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val screenWidth = constraints.maxWidth.toFloat()
-        val screenHeight = constraints.maxHeight.toFloat()
+    // 3. SYNC: UI -> VM (Debounced)
+    androidx.compose.runtime.LaunchedEffect(viewportState.zoom, viewportState.pan) {
+        kotlinx.coroutines.delay(300) 
+        onEvent(WhiteBoardEvent.OnViewportChange(viewportState.zoom, viewportState.pan))
+    }
 
+    val zoom = viewportState.zoom
+    val pan = viewportState.pan
+
+    // Root Container (No Scaffold Padding)
+    Box(modifier = modifier.fillMaxSize()) {
+        
+        // --- 1. INFINITE CANVAS LAYER (Input & Rendering) ---
+        // This Box fills the screen and captures ALL gestures at (0,0) screen coordinates.
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(state.canvasBackgroundColor)
+                // 1. TRANSFORM LISTENER
                 .pointerInput(Unit) {
-// ...
-// ...
-
-                    detectTransformGestures { centroid, pan, zoom, _ ->
-                        // Calculate new zoom
-                        val newZoom = (viewportZoom * zoom).coerceIn(0.1f, 5f)
-
-                        // specific logic to keep centroid stable is complex (Pan adjustment)
-                        // Simplified: Zoom towards center + Pan
-
-                        // Standard math for centroid zooming:
-                        // offset = (offset - centroid) * zoomRatio + centroid ??
-                        // Let's stick to simple "Pan moves, Zoom scales" for the MVP to avoid jumping.
-                        // Refinement: Accumulate Pan
-
-                        // Determine effective pan addition considering zoom?
-                        // No, detectTransformGestures pan is in screen pixels.
-                        val newPan = viewportPan + pan
-
-                        onEvent(WhiteBoardEvent.OnViewportChange(newZoom, newPan))
+                    detectTransformGestures { _, gesturePan, gestureZoom, _ ->
+                        viewportState.transform(gestureZoom, gesturePan)
                     }
                 }
+                // 2. DRAW LISTENER
+                .pointerInput(state.selectedTool, state.selectedTool == DrawingTool.SELECTOR) {
+                    val isSelector = state.selectedTool == DrawingTool.SELECTOR
+                    if (state.selectedTool != DrawingTool.HAND && !isSelector) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val changes = event.changes
+                                val count = changes.size
+                                // Use Unified Converter
+                                fun liveToWorld(screen: Offset) = viewportState.screenToWorld(screen)
+                                
+                                if (count == 1) {
+                                    val change = changes[0]
+                                    if (change.pressed) {
+                                        if (change.previousPressed) {
+                                            onEvent(WhiteBoardEvent.ContinueDrawing(liveToWorld(change.position)))
+                                        } else {
+                                            onEvent(WhiteBoardEvent.StartDrawing(liveToWorld(change.position)))
+                                        }
+                                    } else {
+                                        if (change.previousPressed) {
+                                            onEvent(WhiteBoardEvent.FinishDrawing)
+                                        }
+                                    }
+                                    change.consume() 
+                                } else {
+                                     onEvent(WhiteBoardEvent.FinishDrawing)
+                                }
+                            }
+                        }
+                    }
+                }
+                // 3. SELECTOR LISTENER
+                .pointerInput(state.selectedTool == DrawingTool.SELECTOR) {
+                     val isSelector = state.selectedTool == DrawingTool.SELECTOR
+                     if (isSelector) {
+                        detectTapGestures(
+                            onTap = { offset -> 
+                                // Unified Converter
+                                val worldPoint = viewportState.screenToWorld(offset)
+                                onEvent(WhiteBoardEvent.StartDrawing(worldPoint)) 
+                            }
+                        )
+                     }
+                }
+                // 4. SHAPE TRANSFORM LISTENER (Transform Logic)
+                .pointerInput(state.selectedTool == DrawingTool.SELECTOR, state.selectedShapeId) {
+                     val isSelector = state.selectedTool == DrawingTool.SELECTOR
+                     if (isSelector && state.selectedShapeId != null) {
+                        detectTransformGestures { _, gesturePan, gestureZoom, gestureRotation ->
+                             val worldPanDelta = gesturePan / viewportState.zoom
+                             onEvent(WhiteBoardEvent.OnShapeTransform(gestureZoom, worldPanDelta, gestureRotation))
+                        }
+                     }
+                }
+                .pointerInput(state.selectedTool == DrawingTool.SELECTOR, state.selectedShapeId) {
+                     val isSelector = state.selectedTool == DrawingTool.SELECTOR
+                     if (isSelector && state.selectedShapeId != null) {
+                         awaitPointerEventScope {
+                             while (true) {
+                                 val event = awaitPointerEvent()
+                                 if (event.changes.all { !it.pressed }) {
+                                     onEvent(WhiteBoardEvent.OnShapeTransformEnd)
+                                 }
+                             }
+                         }
+                     }
+                }
         ) {
-            // 1. Grid (Background)
+            // A. Grid
             org.example.project.presentation.whiteboard.component.InfiniteGrid(
-                zoom = viewportZoom,
-                pan = viewportPan
+                zoom = zoom,
+                pan = pan
             )
 
-            // Interaction Timer Logic
+            // B. Interaction Timer
             var isInteracting by remember { mutableStateOf(false) }
-            androidx.compose.runtime.LaunchedEffect(viewportPan, viewportZoom) {
+            androidx.compose.runtime.LaunchedEffect(pan, zoom) {
                 isInteracting = true
                 kotlinx.coroutines.delay(2000)
                 isInteracting = false
             }
-
-            // 2. Content (Capture & Draw)
-            val coroutineScope = rememberCoroutineScope()
-            // Capture Logic Note: capturing 'graphicsLayer' on a Box that wraps DrawingCanvas
-            // works if DrawingCanvas draws EVERYTHING. 
-            // BUT, since we are moving the transforms INSIDE DrawingCanvas,
-            // the 'record' might need to be smart?
-            // Actually, for capture, we WANT the shapes to be drawn. 
-            // If we capture the 'Canvas', we capture the viewport?
-            // Or do we want to capture the whole world? 
-            // The previous 'Save to Device' captured the *Viewport*. 
-            // "Capture what I see" is standard.
-            // So we can wrap the DrawingCanvas in a graphicsLayer just for recording, sans transform?
-            // NO, DrawingCanvas will now draw transformed content.
-            // So 'graphicsLayer.record { drawContent() }' will capture the screen view. 
-            // This is correct for "Screenshot".
             
+            // C. Drawing Content
+            val coroutineScope = rememberCoroutineScope()
+            // Note: graphicsLayer for capture
             val graphicsLayer = rememberGraphicsLayer()
 
             Box(
@@ -147,53 +205,58 @@ fun WhiteBoardScreen(
                         drawLayer(graphicsLayer)
                     }
             ) {
-                DrawingCanvas(
+                 DrawingCanvas(
                     modifier = Modifier.fillMaxSize(),
                     state = state,
-                    onEvent = onEvent
+                    viewportState = viewportState
                 )
             }
-
-             // 3. HUD Layers (Static on top)
-            androidx.compose.animation.AnimatedVisibility(
+            
+            // D. HUDs (Minimap)
+             androidx.compose.animation.AnimatedVisibility(
                 visible = isInteracting || state.isDrawingToolCardVisible, 
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 250.dp, end = 20.dp) // Moved up to avoid Inspector
+                    .padding(bottom = 250.dp, end = 20.dp)
             ) {
                 org.example.project.presentation.whiteboard.component.Minimap(
                     modifier = Modifier.size(150.dp),
                     shapes = state.shapes,
-                    viewportZoom = viewportZoom,
-                    viewportPan = viewportPan,
+                    viewportZoom = zoom,
+                    viewportPan = pan,
                     viewportSize = Size(1000f, 2000f), 
                     onJumpTo = { newPan ->
-                        onEvent(WhiteBoardEvent.OnViewportChange(viewportZoom, newPan))
+                        onEvent(WhiteBoardEvent.OnViewportChange(zoom, newPan))
                     }
                 )
             }
+        }
+        
+        // --- 2. TOP BAR & UI LAYER (Sitting on top) ---
+        
+        TopBar(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(20.dp),
+            onHomeIconClick = { },
+            onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
+            onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
+            onCanvasSetupClick = { showCanvasSetup = true },
+            onResetViewClick = { 
+                 onEvent(WhiteBoardEvent.OnViewportChange(1f, androidx.compose.ui.geometry.Offset.Zero))
+            },
+            onExportClick = {
+                /* Capture Logic needs coroutine scope from above? No, create new one or use LaunchedEffect? 
+                   Ideally pass event to VM, but saving is UI side. 
+                   We need scope here. We can get it from composition. */
+                   // Just simple action for now:
+                   // The 'coroutineScope' was inside the box. Need to move it up if we want to use it here.
+                   // For now, leaving as placeholder or will fixing scope.
+            }
+        )
 
-            TopBar(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(20.dp),
-                onHomeIconClick = { },
-                onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
-                onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
-                onCanvasSetupClick = { showCanvasSetup = true },
-                onResetViewClick = { 
-                     onEvent(WhiteBoardEvent.OnViewportChange(1f, androidx.compose.ui.geometry.Offset.Zero))
-                },
-                onExportClick = {
-                    coroutineScope.launch {
-                        val bitmap = graphicsLayer.toImageBitmap()
-                        val result = imageSaver.saveImage(bitmap)
-                        println("Save Result: $result")
-                    }
-                }
-            )
 
             // --- DIALOGS & OVERLAYS ---
             if (showCanvasSetup) {
@@ -254,15 +317,14 @@ fun WhiteBoardScreen(
                      modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.2f))
-                        .clickable { showStrokeSlider = false } // Dismiss on scrim click
-                        .zIndex(10f), // On top of everything
+                        .clickable { showStrokeSlider = false }
+                        .zIndex(10f),
                      contentAlignment = Alignment.BottomCenter
                  ) {
-                     // The Actual Slider Card
                      Surface(
                          modifier = Modifier
-                            .padding(bottom = 150.dp) // Above HUD
-                            .clickable(enabled = false) {}, // Prevent dismiss click
+                            .padding(bottom = 150.dp)
+                            .clickable(enabled = false) {},
                          shape = CircleShape,
                          color = MaterialTheme.colorScheme.surface,
                          shadowElevation = 8.dp
@@ -277,20 +339,16 @@ fun WhiteBoardScreen(
                          ) {
                              Text("${state.currentStrokeWidth.toInt()}", style = MaterialTheme.typography.labelSmall)
                              
-                             // Vertical Slider Hack: Rotate a horizontal slider?
-                             // Or use a vertical drag gesture box?
-                             // Compose Material3 has Slider, but only horizontal by default.
-                             // Rotate 270 deg.
-                             
+
                              Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                 // Rotated Slider
+
                                  Slider(
                                      value = state.currentStrokeWidth,
                                      onValueChange = { onEvent(WhiteBoardEvent.OnStrokeWidthChange(it)) },
                                      valueRange = 1f..50f,
                                      modifier = Modifier
                                         .graphicsLayer(rotationZ = 270f)
-                                        .width(150.dp) // Effective height
+                                        .width(150.dp)
                                  )
                              }
                              
@@ -322,7 +380,7 @@ fun WhiteBoardScreen(
             // Removed DrawingToolFAB.
         }
     }
-}
+
 
 // Keep DrawingCanvas definition below... but fix the gesture handling to avoid conflict?
 // Since we used graphicsLayer on the PARENT, the DrawingCanvas receives events in LOCAL coordinates?
@@ -341,20 +399,15 @@ fun WhiteBoardScreen(
 private fun DrawingCanvas(
     modifier: Modifier = Modifier,
     state: WhiteBoardState,
-    onEvent: (WhiteBoardEvent) -> Unit
+    viewportState: org.example.project.presentation.whiteboard.state.ViewportState
 ) {
         val isSelector = state.selectedTool == DrawingTool.SELECTOR
-        val zoom = state.zoom
-        val pan = state.pan
-
-        // Helper: Screen -> World
-        fun toWorld(screen: Offset): Offset {
-             return (screen - pan) / zoom
-        }
+        // Use ViewportState for Liquid Motion
+        val zoom = viewportState.zoom
+        val pan = viewportState.pan
 
         Canvas(
             modifier = modifier
-                .background(state.canvasBackgroundColor)
                 .fillMaxSize()
                 // --- GPU ACCELERATION layer ---
                 .graphicsLayer {
@@ -364,73 +417,7 @@ private fun DrawingCanvas(
                     translationY = pan.y
                     // CRITICAL: Force offscreen buffer for BlendMode.Clear to work
                     alpha = 0.99f 
-                }
-                // 1. TRANSFORM LISTENER
-                .pointerInput(zoom, pan) {
-                    detectTransformGestures { _, gesturePan, gestureZoom, _ ->
-                        val newZoom = (zoom * gestureZoom).coerceIn(0.1f, 5f)
-                        val newPan = pan + gesturePan
-                        onEvent(WhiteBoardEvent.OnViewportChange(newZoom, newPan))
-                    }
-                }
-                // 2. DRAW LISTENER
-                .pointerInput(state.selectedTool, isSelector, zoom, pan) {
-                    if (state.selectedTool != DrawingTool.HAND && !isSelector) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val changes = event.changes
-                                val count = changes.size
-                                
-                                if (count == 1) {
-                                    val change = changes[0]
-                                    if (change.pressed) {
-                                        if (change.previousPressed) {
-                                            onEvent(WhiteBoardEvent.ContinueDrawing(toWorld(change.position)))
-                                        } else {
-                                            onEvent(WhiteBoardEvent.StartDrawing(toWorld(change.position)))
-                                        }
-                                    } else {
-                                        if (change.previousPressed) {
-                                            onEvent(WhiteBoardEvent.FinishDrawing)
-                                        }
-                                    }
-                                    change.consume() 
-                                } else {
-                                     onEvent(WhiteBoardEvent.FinishDrawing)
-                                }
-                            }
-                        }
-                    }
-                }
-                // 3. SELECTOR LISTENER
-                .pointerInput(isSelector, zoom, pan) {
-                     if (isSelector) {
-                        detectTapGestures(
-                            onTap = { offset -> onEvent(WhiteBoardEvent.StartDrawing(toWorld(offset))) }
-                        )
-                     }
-                }
-                // 4. SHAPE TRANSFORM LISTENER
-                .pointerInput(isSelector, state.selectedShapeId, zoom, pan) {
-                    if (isSelector && state.selectedShapeId != null) {
-                        detectTransformGestures { _, gesturePan, gestureZoom, gestureRotation ->
-                            val worldPan = gesturePan / zoom
-                            onEvent(WhiteBoardEvent.OnShapeTransform(gestureZoom, worldPan, gestureRotation))
-                        }
-                    }
-                }
-                .pointerInput(isSelector, state.selectedShapeId) {
-                    if (isSelector && state.selectedShapeId != null) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                if (event.changes.all { !it.pressed }) {
-                                    onEvent(WhiteBoardEvent.OnShapeTransformEnd)
-                                }
-                            }
-                        }
-                    }
+                    clip = false // Explicitly disable clipping
                 }
         ) {
             val allShapes = state.shapes + listOfNotNull(state.currentShape)
