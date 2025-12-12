@@ -14,6 +14,10 @@ object HitTestUtil {
     fun getShapeAt(shapes: List<DrawnShape>, point: Offset): DrawnShape? {
         // Iterate reversed to select top-most shape first
         return shapes.asReversed().find { shape ->
+            // FILTER: Strict visibility check
+            // 1. Erasers are "invisible" (background color), so ignore them for selection.
+            if (shape.drawingTool == org.example.project.domain.model.DrawingTool.ERASER) return@find false
+            
             isPointInShape(shape, point)
         }
     }
@@ -36,12 +40,11 @@ object HitTestUtil {
 
     private fun isPointInFreeHand(shape: DrawnShape.FreeHand, point: Offset): Boolean {
         // Simple bounding box check for FreeHand for now (Optimization)
-        // A more accurate way would be to check distance to every segment, but that's expensive for many paths.
         
-        var minX = Float.MAX_VALUE
-        var maxX = Float.MIN_VALUE
-        var minY = Float.MAX_VALUE
-        var maxY = Float.MIN_VALUE
+        var minX = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
 
         shape.points.forEach { 
             if (it.x < minX) minX = it.x

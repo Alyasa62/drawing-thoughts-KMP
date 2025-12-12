@@ -62,7 +62,23 @@ class WhiteBoardViewModel : ViewModel() {
                 val tool = _state.value.selectedTool
                 
                 if (tool == DrawingTool.SELECTOR) {
-                    val shapeHit = org.example.project.utils.HitTestUtil.getShapeAt(_state.value.shapes, event.offset)
+                    // ARCHITECTURE FIX: "What You See Is What You Touch"
+                    // 1. Strict Visibility: No Erasers
+                    // 2. Coordinate Integrity: No Zero-Size Geometric shapes (unless points, but mostly noise)
+                    val visibleShapes = _state.value.shapes.filter { shape ->
+                        val isEraser = shape.drawingTool == DrawingTool.ERASER
+                        val isInvisibleColor = shape.color == _state.value.canvasBackgroundColor || shape.color == Color.Transparent
+                        val isValidSize = when(shape) {
+                             is DrawnShape.Geometric -> {
+                                 val w = kotlin.math.abs(shape.start.x - shape.end.x)
+                                 val h = kotlin.math.abs(shape.start.y - shape.end.y)
+                                 w > 5f || h > 5f // Increased threshold to 5px to avoid tiny noise
+                             }
+                             is DrawnShape.FreeHand -> shape.points.size > 2 // Need at least a line segment
+                        }
+                        !isEraser && !isInvisibleColor && isValidSize
+                    }
+                    val shapeHit = org.example.project.utils.HitTestUtil.getShapeAt(visibleShapes, event.offset)
                     _state.update { 
                         it.copy(
                             selectedShapeId = shapeHit?.id,

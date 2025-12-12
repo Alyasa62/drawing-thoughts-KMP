@@ -26,7 +26,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.example.project.domain.model.DrawingTool
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.MaterialTheme
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 
 @Composable
 fun DrawingToolCard(
@@ -36,6 +41,18 @@ fun DrawingToolCard(
     onClosedIconClick: () -> Unit,
     isVisible: Boolean
 ) {
+    val listState = rememberLazyListState()
+
+    // 1. LOGIC: SYNC SCROLL POSITION (Auto-Scroll)
+    LaunchedEffect(isVisible) { 
+        if (isVisible) {
+            val index = DrawingTool.entries.indexOf(selectedTool)
+            if (index >= 0) {
+                listState.scrollToItem(index)
+            }
+        }
+    }
+
     AnimatedVisibility(
         modifier = modifier,
         visible = isVisible,
@@ -49,6 +66,7 @@ fun DrawingToolCard(
                 verticalAlignment = Alignment.CenterVertically
             ){
                 LazyRow(
+                    state = listState,
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -96,7 +114,12 @@ private fun DrawingToolItem(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+        
         IconButton(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(backgroundColor),
             onClick = { onToolClick() }
         ) {
             Icon(
@@ -111,12 +134,6 @@ private fun DrawingToolItem(
 
             )
         }
-        if(isSelected) {
-            Box(
-                modifier = Modifier.
-                background(LocalContentColor.current)
-                    .size(25.dp, 1 .dp)
-            )
-        }
+        // Removed the old underscore line as the background is now the indicator
     }
 }
