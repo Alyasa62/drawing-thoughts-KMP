@@ -9,6 +9,8 @@ sealed interface WhiteBoardEvent {
     data class StartDrawing(val offset: Offset): WhiteBoardEvent
     data class ContinueDrawing(val offset: Offset): WhiteBoardEvent
     data object FinishDrawing: WhiteBoardEvent
+    data class OnShapeTransform(val zoom: Float, val pan: Offset, val rotation: Float): WhiteBoardEvent
+    data object OnShapeTransformEnd: WhiteBoardEvent
     data object OnFABClick: WhiteBoardEvent
     data object OnCloseDrawingToolsCard: WhiteBoardEvent
     

@@ -14,5 +14,7 @@ data class WhiteBoardState(
     val startingOffset: Offset? = null,
     val currentStrokeWidth: Float = 10f,
     val currentColor: Color = Color.Black,
-    val canvasBackgroundColor: Color = Color.White
-)
+    val canvasBackgroundColor: Color = Color.White,
+    val transientScale: Float = 1f,
+    val transientOffset: Offset = Offset.Zero,
+    val transientRotation: Float = 0f)

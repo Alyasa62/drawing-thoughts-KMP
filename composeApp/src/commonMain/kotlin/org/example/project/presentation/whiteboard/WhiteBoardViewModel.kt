@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 import org.example.project.domain.model.DrawingTool
 import org.example.project.domain.model.DrawnShape
 import org.example.project.utils.PathSmoother
+import kotlin.math.max
+import kotlin.math.min
 
 class WhiteBoardViewModel : ViewModel() {
 
@@ -148,6 +150,18 @@ class WhiteBoardViewModel : ViewModel() {
             is WhiteBoardEvent.OnBackgroundChange -> {
                 _state.update { it.copy(canvasBackgroundColor = event.color) }
             }
+            is WhiteBoardEvent.OnShapeTransform -> {
+                _state.update { 
+                    it.copy(
+                        transientScale = it.transientScale * event.zoom,
+                        transientOffset = it.transientOffset + event.pan,
+                        transientRotation = it.transientRotation + event.rotation
+                    )
+                }
+            }
+            WhiteBoardEvent.OnShapeTransformEnd -> {
+                applyTransientTransform()
+            }
         }
     }
 
@@ -245,6 +259,75 @@ class WhiteBoardViewModel : ViewModel() {
         return when (tool) {
             DrawingTool.PEN, DrawingTool.HIGHLIGHTER, DrawingTool.LASER_PEN, DrawingTool.ERASER -> true
             else -> false
+        }
+    }
+
+    private fun applyTransientTransform() {
+        val selectedId = state.value.selectedShapeId ?: return
+        val scale = state.value.transientScale
+        val offset = state.value.transientOffset
+        
+        if (scale == 1f && offset == Offset.Zero) return
+        
+        val updatedShapes = state.value.shapes.map { shape ->
+            if (shape.id == selectedId) {
+                when (shape) {
+                    is DrawnShape.Geometric -> {
+                        val centerX = (shape.start.x + shape.end.x) / 2
+                        val centerY = (shape.start.y + shape.end.y) / 2
+                        
+                        val width = (shape.end.x - shape.start.x) * scale
+                        val height = (shape.end.y - shape.start.y) * scale
+                        
+                        val newHalfWidth = width / 2
+                        val newHalfHeight = height / 2
+                        
+                        val newCenterX = centerX + offset.x
+                        val newCenterY = centerY + offset.y
+                        
+                        shape.copy(
+                            start = Offset(newCenterX - newHalfWidth, newCenterY - newHalfHeight),
+                            end = Offset(newCenterX + newHalfWidth, newCenterY + newHalfHeight)
+                        )
+                    }
+                    is DrawnShape.FreeHand -> {
+                        var minX = Float.POSITIVE_INFINITY
+                        var minY = Float.POSITIVE_INFINITY
+                        var maxX = Float.NEGATIVE_INFINITY
+                        var maxY = Float.NEGATIVE_INFINITY
+                        shape.points.forEach { 
+                            minX = min(minX, it.x)
+                            maxX = max(maxX, it.x)
+                            minY = min(minY, it.y)
+                            maxY = max(maxY, it.y)
+                        }
+                        val centerX = (minX + maxX) / 2
+                        val centerY = (minY + maxY) / 2
+                        
+                        val newCenterX = centerX + offset.x
+                        val newCenterY = centerY + offset.y
+                        
+                        val newPoints = shape.points.map { p ->
+                            val relX = (p.x - centerX) * scale
+                            val relY = (p.y - centerY) * scale
+                            Offset(newCenterX + relX, newCenterY + relY)
+                        }
+                        val newPath = PathSmoother.createSmoothedPath(newPoints)
+                        shape.copy(points = newPoints, path = newPath)
+                    }
+                }
+            } else {
+                shape
+            }
+        }
+        
+        _state.update { 
+            it.copy(
+                shapes = updatedShapes,
+                transientScale = 1f,
+                transientOffset = Offset.Zero,
+                transientRotation = 0f
+            )
         }
     }
 }

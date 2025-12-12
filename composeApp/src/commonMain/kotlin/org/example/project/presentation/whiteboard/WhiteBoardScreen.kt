@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import org.example.project.domain.model.DrawingTool
@@ -37,6 +40,7 @@ import org.example.project.presentation.whiteboard.component.DrawingToolFAB
 import org.example.project.presentation.whiteboard.component.TopBar
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.max
 
 @Composable
 fun WhiteBoardScreen(
@@ -130,24 +134,64 @@ private fun DrawingCanvas(
     state: WhiteBoardState,
     onEvent: (WhiteBoardEvent) -> Unit
 ) {
+    val isSelector = state.selectedTool == DrawingTool.SELECTOR
+
     Canvas(
         modifier = modifier
             .background(state.canvasBackgroundColor)
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { offset -> onEvent(WhiteBoardEvent.StartDrawing(offset)) },
-                    onDrag = { change, _ ->
-                        val offset = Offset(change.position.x, change.position.y)
-                        onEvent(WhiteBoardEvent.ContinueDrawing(offset))
-                    },
-                    onDragEnd = { onEvent(WhiteBoardEvent.FinishDrawing) }
-                )
+            .pointerInput(isSelector) {
+                if (isSelector) {
+                    // --- SELECTOR MODE GESTURES ---
+                    detectTapGestures(
+                        onTap = { offset -> onEvent(WhiteBoardEvent.StartDrawing(offset)) }
+                    )
+                } else {
+                    // --- DRAWING MODE GESTURES ---
+                    detectDragGestures(
+                        onDragStart = { offset -> onEvent(WhiteBoardEvent.StartDrawing(offset)) },
+                        onDrag = { change, _ ->
+                            val offset = Offset(change.position.x, change.position.y)
+                            onEvent(WhiteBoardEvent.ContinueDrawing(offset))
+                        },
+                        onDragEnd = { onEvent(WhiteBoardEvent.FinishDrawing) }
+                    )
+                }
+            }
+            .pointerInput(isSelector, state.selectedShapeId) {
+                 if (isSelector && state.selectedShapeId != null) {
+                      detectTransformGestures { _, pan, zoom, rotation ->
+                          onEvent(WhiteBoardEvent.OnShapeTransform(zoom, pan, rotation))
+                      }
+                 }
+            }
+            // Listener for Transform End? detectTransformGestures doesn't have onEnd.
+            // Workaround: We might need a custom detector or assume end when touch lifts (complex).
+            // For MVP, we will rely on a separate pointerInput for "up" or just apply transient constantly?
+            // "detectTransformGestures" blocks. 
+            // Better: use 'forEachGesture' manually if we need 'onEnd'. 
+            // OR: Just let the transient state stick until next tap? No, that's bad UX.
+            // Simplified: We accept that changes are committed constantly or we add a "UP" listener.
+            // Let's stick to commiting on every frame? No, expensive.
+            // Let's add a separate listener for 'onRelease'.
+            .pointerInput(isSelector, state.selectedShapeId) {
+                if (isSelector && state.selectedShapeId != null) {
+                    awaitPointerEventScope {
+                         while (true) {
+                             val event = awaitPointerEvent()
+                             if (event.changes.all { !it.pressed }) {
+                                 onEvent(WhiteBoardEvent.OnShapeTransformEnd)
+                             }
+                         }
+                    }
+                }
             }
     ) {
         val allShapes = state.shapes + listOfNotNull(state.currentShape)
         
         allShapes.forEach { shape ->
+            val isSelected = shape.id == state.selectedShapeId
+            
             // --- PHYSICS & ATTRIBUTES CALCULATION ---
             var actualColor = shape.color
             var actualAlpha = 1.0f
@@ -161,8 +205,6 @@ private fun DrawingCanvas(
                     actualAlpha = 0.4f
                     actualStrokeWidth = shape.strokeWidth * 3 // Fat marker
                     actualCap = androidx.compose.ui.graphics.StrokeCap.Square
-                    // Ensure it blends nicely without wiping content if we had layers, 
-                    // but on single canvas SrcOver with alpha is best we can do.
                 }
                 DrawingTool.ERASER -> {
                     actualColor = state.canvasBackgroundColor // "Fake" erase
@@ -185,91 +227,112 @@ private fun DrawingCanvas(
                 )
             }
 
-            // --- RENDERING ---
-            when (shape) {
-                is DrawnShape.FreeHand -> {
-                    drawPath(
-                        path = shape.path,
-                        color = actualColor,
-                        alpha = actualAlpha,
-                        style = style,
-                        blendMode = actualBlendMode
-                    )
-                }
-                is DrawnShape.Geometric -> {
-                    val topLeft = Offset(
-                        min(shape.start.x, shape.end.x),
-                        min(shape.start.y, shape.end.y)
-                    )
-                    val size = Size(
-                        abs(shape.start.x - shape.end.x),
-                        abs(shape.start.y - shape.end.y)
-                    )
+            // Transform Context for Selected Shape
+            val drawParams = if (isSelected) {
+                // Calculate Center for Pivot
+                 var centerX = 0f
+                 var centerY = 0f
+                 if(shape is DrawnShape.Geometric) {
+                     centerX = (shape.start.x + shape.end.x) / 2
+                     centerY = (shape.start.y + shape.end.y) / 2
+                 } else if (shape is DrawnShape.FreeHand) {
+                     // Approximate center (Optimization: Cache this?)
+                      var minX = Float.POSITIVE_INFINITY; var maxX = Float.NEGATIVE_INFINITY
+                      var minY = Float.POSITIVE_INFINITY; var maxY = Float.NEGATIVE_INFINITY
+                      shape.points.forEach { minX = min(minX, it.x); maxX = max(maxX, it.x); minY = min(minY, it.y); maxY = max(maxY, it.y) }
+                      centerX = (minX + maxX)/2
+                      centerY = (minY + maxY)/2
+                 }
+                 
+                 Triple(state.transientScale, state.transientOffset, Offset(centerX, centerY))
+            } else {
+                Triple(1f, Offset.Zero, Offset.Zero)
+            }
 
-                    when (shape.drawingTool) {
-                        DrawingTool.CIRCLE_OUTLINED, DrawingTool.CIRCLE_FILLED -> {
-                            drawOval(
-                                color = actualColor,
-                                topLeft = topLeft,
-                                size = size,
-                                style = style,
-                                alpha = actualAlpha
-                            )
+            val (scale, offset, pivot) = drawParams
+
+            withTransform({
+                if (isSelected) {
+                     translate(offset.x, offset.y)
+                     scale(scale, scale, pivot)
+                }
+            }) {
+                // --- RENDERING ---
+                when (shape) {
+                    is DrawnShape.FreeHand -> {
+                        drawPath(
+                            path = shape.path,
+                            color = actualColor,
+                            alpha = actualAlpha,
+                            style = style,
+                            blendMode = actualBlendMode
+                        )
+                    }
+                    is DrawnShape.Geometric -> {
+                        val topLeft = Offset(
+                            min(shape.start.x, shape.end.x),
+                            min(shape.start.y, shape.end.y)
+                        )
+                        val size = Size(
+                            abs(shape.start.x - shape.end.x),
+                            abs(shape.start.y - shape.end.y)
+                        )
+
+                        when (shape.drawingTool) {
+                            DrawingTool.CIRCLE_OUTLINED, DrawingTool.CIRCLE_FILLED -> {
+                                drawOval(color = actualColor, topLeft = topLeft, size = size, style = style, alpha = actualAlpha)
+                            }
+                            DrawingTool.RECTANGLE_OUTLINED, DrawingTool.RECTANGLE_FILLED -> {
+                                drawRect(color = actualColor, topLeft = topLeft, size = size, style = style, alpha = actualAlpha)
+                            }
+                            DrawingTool.LINE_PLANE, DrawingTool.LINE_DOTTED, DrawingTool.PEN -> {
+                                drawLine(color = actualColor, start = shape.start, end = shape.end, strokeWidth = actualStrokeWidth, cap = actualCap, pathEffect = actualPathEffect, alpha = actualAlpha)
+                            }
+                            DrawingTool.TRIANGLE_OUTLINED, DrawingTool.TRIANGLE_FILLED -> {
+                                val path = org.example.project.utils.GeometryHelper.calculateTrianglePath(shape.start, shape.end)
+                                drawPath(path = path, color = actualColor, alpha = actualAlpha, style = style)
+                            }
+                            DrawingTool.ARROW_ONE_SIDED -> {
+                                val path = org.example.project.utils.GeometryHelper.calculateArrowPath(shape.start, shape.end, false)
+                                drawPath(path = path, color = actualColor, style = Stroke(width = actualStrokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round), alpha = actualAlpha)
+                            }
+                            DrawingTool.ARROW_TWO_SIDED -> {
+                                val path = org.example.project.utils.GeometryHelper.calculateArrowPath(shape.start, shape.end, true)
+                                drawPath(path = path, color = actualColor, style = Stroke(width = actualStrokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round), alpha = actualAlpha)
+                            }
+                            else -> {}
                         }
-                        DrawingTool.RECTANGLE_OUTLINED, DrawingTool.RECTANGLE_FILLED -> {
+                        
+                         // --- FIGMA SELECTION OVERLAY (INSIDE TRANSFORM) ---
+                         if (isSelected) {
+                            // Border
                             drawRect(
-                                color = actualColor,
+                                color = Color(0xFF18A0FB), // Figma Blue
                                 topLeft = topLeft,
                                 size = size,
-                                style = style,
-                                alpha = actualAlpha
+                                style = Stroke(width = 2.dp.toPx())
                             )
-                        }
-                        DrawingTool.LINE_PLANE, DrawingTool.LINE_DOTTED, DrawingTool.PEN -> {
-                            // PEN here handles the 'Straight Line' geometric mode if added later
-                            drawLine(
-                                color = actualColor,
-                                start = shape.start,
-                                end = shape.end,
-                                strokeWidth = actualStrokeWidth,
-                                cap = actualCap,
-                                pathEffect = actualPathEffect,
-                                alpha = actualAlpha
+                            
+                            // Handles (Corners)
+                            val handleRadius = 5.dp.toPx()
+                            val handleColor = Color.White
+                            val handleStroke = Color(0xFF18A0FB)
+                            
+                            val corners = listOf(
+                                topLeft,
+                                Offset(topLeft.x + size.width, topLeft.y),
+                                Offset(topLeft.x, topLeft.y + size.height),
+                                Offset(topLeft.x + size.width, topLeft.y + size.height)
                             )
-                        }
-                        DrawingTool.TRIANGLE_OUTLINED, DrawingTool.TRIANGLE_FILLED -> {
-                            val path = org.example.project.utils.GeometryHelper.calculateTrianglePath(shape.start, shape.end)
-                            drawPath(
-                                path = path,
-                                color = actualColor,
-                                alpha = actualAlpha,
-                                style = style
-                            )
-                        }
-                        DrawingTool.ARROW_ONE_SIDED -> {
-                            val path = org.example.project.utils.GeometryHelper.calculateArrowPath(shape.start, shape.end, false)
-                            drawPath(
-                                path = path,
-                                color = actualColor,
-                                style = Stroke(width = actualStrokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                                alpha = actualAlpha
-                            )
-                        }
-                        DrawingTool.ARROW_TWO_SIDED -> {
-                            val path = org.example.project.utils.GeometryHelper.calculateArrowPath(shape.start, shape.end, true)
-                            drawPath(
-                                path = path,
-                                color = actualColor,
-                                style = Stroke(width = actualStrokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round), // Ensure Arrows are always stroked
-                                alpha = actualAlpha
-                            )
-                        }
-                        else -> {
-                            // Fallback
-                        }
+                            
+                            corners.forEach { center ->
+                                drawCircle(handleColor, radius = handleRadius, center = center)
+                                drawCircle(handleStroke, radius = handleRadius, center = center, style = Stroke(width = 1.dp.toPx()))
+                            }
+                         }
                     }
                 }
-            }
+            } // End withTransform
         }
     }
 }
