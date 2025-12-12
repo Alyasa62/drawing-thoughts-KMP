@@ -1,52 +1,131 @@
 package org.example.project.presentation.whiteboard
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.example.project.domain.model.DrawingTool
-import org.example.project.domain.model.DrawnPath
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.pow
-import kotlin.math.sqrt
+import org.example.project.domain.model.DrawnShape
+import org.example.project.utils.PathSmoother
 
-class WhiteBoardViewModel: ViewModel() {
+class WhiteBoardViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(WhiteBoardState())
     val state = _state.asStateFlow()
 
+    private val undoStack = mutableListOf<List<DrawnShape>>()
+    private val redoStack = mutableListOf<List<DrawnShape>>()
+    private val MAX_HISTORY_SIZE = 50
+
+    // Temporary storage for freehand points before smoothing
+    private var currentFreeHandPoints = mutableListOf<Offset>()
+    
+    // Repository Integration
+    private val repository: org.example.project.data.repository.ShapeRepository by lazy {
+        val db = org.example.project.data.local.getDatabaseBuilder().build()
+        org.example.project.data.repository.ShapeRepository(db.shapeDao())
+    }
+
+    init {
+        // Load initial state
+        viewModelScope.launch {
+            try {
+                val loadedShapes = repository.getShapes()
+                _state.update { it.copy(shapes = loadedShapes) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        
+        // Auto-save logic (Debounce)
+        viewModelScope.launch {
+            state.collect { currentState ->
+                 kotlinx.coroutines.delay(2000) // Debounce 2 seconds
+                 if (currentState.shapes.isNotEmpty()) {
+                     repository.saveShapes(currentState.shapes)
+                 }
+            }
+        }
+    }
+
     fun onEvent(event: WhiteBoardEvent) {
-        when(event) {
+        when (event) {
             is WhiteBoardEvent.StartDrawing -> {
-                _state.update {
-                    it.copy(
-                        startingOffset = event.offset
-                    )
+                currentFreeHandPoints.clear()
+                val tool = _state.value.selectedTool
+                
+                if (tool == DrawingTool.SELECTOR) {
+                    // --- SELECTION MODE ---
+                    // 1. Try to find a handle if a shape is already selected
+                    // (For MVP simplicity, skipping complex handle logic inside ViewModel, assumes dragging body moves)
+                    
+                    // 2. Or Select a new shape
+                    val shapeHit = org.example.project.utils.HitTestUtil.getShapeAt(_state.value.shapes, event.offset)
+                    _state.update { 
+                        it.copy(
+                            selectedShapeId = shapeHit?.id,
+                            startingOffset = event.offset // Track start of drag
+                        ) 
+                    }
+                } else {
+                    // --- DRAWING MODE ---
+                    if (isFreeHandTool(tool)) {
+                        currentFreeHandPoints.add(event.offset)
+                    }
+                    _state.update { 
+                        it.copy(
+                            selectedShapeId = null, // Deselect when drawing new
+                            startingOffset = event.offset 
+                        ) 
+                    }
                 }
             }
 
             is WhiteBoardEvent.ContinueDrawing -> {
-                updateContinuingOffset(event.offset)
-
-            }
-            WhiteBoardEvent.FinishDrawing -> {
-                state.value.currentPath?.let { path ->
-                    _state.update {
-                        it.copy(
-                            paths = it.paths + path,
-                            currentPath = null,
-                            startingOffset = null
-                        )
-                    }
+                if (_state.value.selectedTool == DrawingTool.SELECTOR) {
+                   updateSelectedShapePosition(event.offset)
+                } else {
+                   updateContinuingShape(event.offset)
                 }
             }
-            WhiteBoardEvent.OnCloseDrawingToolsCard -> {}
+
+            WhiteBoardEvent.FinishDrawing -> {
+                 if (_state.value.selectedTool == DrawingTool.SELECTOR) {
+                     // Commit the move to undo stack (Optional: Optimization to not save every frame)
+                     // For now, if we dragged, we should save.
+                     // A simple way is to check if startingOffset != null.
+                     _state.update { it.copy(startingOffset = null) }
+                 } else {
+                    val currentShape = state.value.currentShape
+                    if (currentShape != null) {
+                        addToHistory(state.value.shapes) // Save state BEFORE adding new shape
+                        
+                        val finalShape = if (currentShape is DrawnShape.FreeHand) {
+                            // Smooth the path
+                            val smoothedPath = PathSmoother.createSmoothedPath(currentFreeHandPoints)
+                            currentShape.copy(path = smoothedPath, points = currentFreeHandPoints.toList())
+                        } else {
+                            currentShape
+                        }
+    
+                        _state.update {
+                            it.copy(
+                                shapes = it.shapes + finalShape,
+                                currentShape = null,
+                                startingOffset = null
+                            )
+                        }
+                        redoStack.clear()
+                        currentFreeHandPoints.clear()
+                    }
+                 }
+            }
+
             is WhiteBoardEvent.OnDrawingToolSelected -> {
                 _state.update {
                     it.copy(
@@ -55,124 +134,129 @@ class WhiteBoardViewModel: ViewModel() {
                     )
                 }
             }
+
             WhiteBoardEvent.OnFABClick -> {
-                _state.update {
-                    it.copy(isDrawingToolCardVisible = true)
+                _state.update { it.copy(isDrawingToolCardVisible = true) }
+            }
+
+            WhiteBoardEvent.OnCloseDrawingToolsCard -> {
+                _state.update { it.copy(isDrawingToolCardVisible = false) }
+            }
+
+            // Undo/Redo
+            WhiteBoardEvent.OnUndo -> performUndo()
+            WhiteBoardEvent.OnRedo -> performRedo()
+
+            // Properties
+            is WhiteBoardEvent.OnStrokeWidthChange -> {
+                _state.update { it.copy(currentStrokeWidth = event.width) }
+            }
+            is WhiteBoardEvent.OnColorChange -> {
+                _state.update { it.copy(currentColor = event.color) }
+            }
+            is WhiteBoardEvent.OnBackgroundChange -> {
+                _state.update { it.copy(canvasBackgroundColor = event.color) }
+            }
+        }
+    }
+
+    private fun addToHistory(shapes: List<DrawnShape>) {
+        if (undoStack.size >= MAX_HISTORY_SIZE) {
+            undoStack.removeAt(0)
+        }
+        undoStack.add(shapes)
+    }
+
+    private fun performUndo() {
+        if (undoStack.isNotEmpty()) {
+            val previousShapes = undoStack.removeLast()
+            redoStack.add(state.value.shapes)
+            _state.update { it.copy(shapes = previousShapes) }
+        }
+    }
+
+    private fun performRedo() {
+        if (redoStack.isNotEmpty()) {
+            val nextShapes = redoStack.removeLast()
+            addToHistory(state.value.shapes) // Push current to undo before redoing
+            _state.update { it.copy(shapes = nextShapes) }
+        }
+    }
+
+    private fun updateSelectedShapePosition(currentOffset: Offset) {
+        val startDragString = state.value.startingOffset ?: return
+        val selectedId = state.value.selectedShapeId ?: return
+        
+        // Calculate delta
+        val deltaX = currentOffset.x - startDragString.x
+        val deltaY = currentOffset.y - startDragString.y
+        
+        // Update the list of shapes
+        val updatedShapes = state.value.shapes.map { shape ->
+            if (shape.id == selectedId) {
+                when (shape) {
+                    is DrawnShape.Geometric -> {
+                        shape.copy(
+                            start = shape.start.copy(x = shape.start.x + deltaX, y = shape.start.y + deltaY),
+                            end = shape.end.copy(x = shape.end.x + deltaX, y = shape.end.y + deltaY)
+                        )
+                    }
+                    is DrawnShape.FreeHand -> {
+                        // Move all points
+                        val newPoints = shape.points.map { 
+                            it.copy(x = it.x + deltaX, y = it.y + deltaY) 
+                        }
+                         val newPath = PathSmoother.createSmoothedPath(newPoints)
+                         shape.copy(points = newPoints, path = newPath)
+                    }
+                }
+            } else {
+                shape
+            }
+        }
+        
+        _state.update { 
+            it.copy(
+                shapes = updatedShapes,
+                startingOffset = currentOffset // Reset start to current for incremental updates
+            )
+        }
+    }
+
+    private fun updateContinuingShape(currentOffset: Offset) {
+        val startOffset = state.value.startingOffset ?: return
+        val tool = state.value.selectedTool
+        val color = state.value.currentColor
+        val strokeWidth = state.value.currentStrokeWidth
+        // Use a temporary ID for the currently drawing shape (0L which wont clash with DB IDs easily if logic holds, or random)
+        // Ideally we should generate the ID here too, but 'currentShape' is transient.
+        // We will assign a real ID when 'FinishDrawing' creates the final shape.
+        val tempId = "temp_${kotlin.random.Random.nextInt()}" 
+
+        val newShape: DrawnShape = if (isFreeHandTool(tool)) {
+            currentFreeHandPoints.add(currentOffset)
+            // For live preview, we use the raw points or simple path
+            val path = Path().apply {
+                if (currentFreeHandPoints.isNotEmpty()) {
+                    moveTo(currentFreeHandPoints.first().x, currentFreeHandPoints.first().y)
+                    for (i in 1 until currentFreeHandPoints.size) {
+                        lineTo(currentFreeHandPoints[i].x, currentFreeHandPoints[i].y)
+                    }
                 }
             }
+            DrawnShape.FreeHand(tempId, color, strokeWidth, tool, path, currentFreeHandPoints.toList())
+        } else {
+            // Geometric shapes
+            DrawnShape.Geometric(tempId, color, strokeWidth, tool, startOffset, currentOffset)
         }
 
+        _state.update { it.copy(currentShape = newShape) }
     }
 
-    private fun updateContinuingOffset(offset: Offset) {
-
-        val startOffset = state.value.startingOffset
-        val updatedPath: Path? = when(state.value.selectedTool){
-            DrawingTool.PEN, DrawingTool.HIGHLIGHTER, DrawingTool.LASER_PEN, DrawingTool.ERASER -> {
-
-                createFreeHandPath(start = startOffset, end = offset)
-
-            }
-
-            DrawingTool.LINE_PLANE, DrawingTool.LINE_DOTTED -> {
-                createLinePath(start = startOffset, end = offset)
-            }
-
-            DrawingTool.ARROW_ONE_SIDED, DrawingTool.ARROW_TWO_SIDED -> {
-                null
-            }
-
-            DrawingTool.CIRCLE_OUTLINED, DrawingTool.CIRCLE_FILLED -> {
-                createCirclePath(start = startOffset, end = offset)
-            }
-
-            DrawingTool.RECTANGLE_OUTLINED,  DrawingTool.RECTANGLE_FILLED -> {
-                createRectanglePath(start = startOffset, end = offset)
-
-            }
-
-            DrawingTool.TRIANGLE_OUTLINED, DrawingTool.TRIANGLE_FILLED -> {
-                createTrianglePath(start = startOffset, end = offset)
-
-            }
-
-
-        }
-        updatedPath?.let    {path ->
-            _state.update {
-                it.copy(
-                    currentPath = DrawnPath(
-                        path = path,
-                        drawingTool = state.value.selectedTool,
-                        color = Color.Black,
-                        strokeWidth = 5f
-
-                    )
-                )
-            }
-        }
-    }
-
-    private fun createFreeHandPath(start: Offset?, end: Offset): Path {
-        val existingPath = state.value.currentPath?.path?: Path().apply{
-            start?.let { moveTo(it.x, it.y) }
-        }
-        return Path().apply {
-            addPath(existingPath)
-            lineTo(end.x, end.y)
-        }
-    }
-
-    private fun createLinePath(start: Offset?, end: Offset): Path {
-        return Path().apply {
-            start?.let { moveTo(it.x, it.y) }
-            lineTo(end.x, end.y)
-        }
-    }
-    private fun createRectanglePath(start: Offset?, end: Offset): Path {
-        return Path().apply {
-            start?.let {
-                // Determine the actual top-left and bottom-right corners
-                val left = min(it.x, end.x)
-                val top = min(it.y, end.y)
-                val right = max(it.x, end.x)
-                val bottom = max(it.y, end.y)
-
-                addRect(Rect(left, top, right, bottom))
-            }
-        }
-    }
-    private fun createCirclePath(start: Offset?, end: Offset): Path {
-        return Path().apply {
-            start?.let {
-                val dx = end.x - it.x
-                val dy = end.y - it.y
-                // Correctly calculate the radius using the distance formula
-                val radius = sqrt(dx.pow(2) + dy.pow(2))
-
-                // Create the circle with the start point as the center
-                addOval(Rect(center = it, radius = radius))
-            }
-        }
-    }
-    private fun createTrianglePath(start: Offset?, end: Offset): Path {
-        return Path().apply {
-            start?.let {
-                val topVertex = it
-
-                val baseY = end.y
-
-                val halfBaseWidth = abs(it.x - end.x)
-
-
-                val bottomLeftVertex = Offset(x = it.x - halfBaseWidth, y = baseY)
-                val bottomRightVertex = Offset(x = it.x + halfBaseWidth, y = baseY)
-
-                moveTo(topVertex.x, topVertex.y)
-                lineTo(bottomLeftVertex.x, bottomLeftVertex.y)
-                lineTo(bottomRightVertex.x, bottomRightVertex.y)
-                close()
-            }
+    private fun isFreeHandTool(tool: DrawingTool): Boolean {
+        return when (tool) {
+            DrawingTool.PEN, DrawingTool.HIGHLIGHTER, DrawingTool.LASER_PEN, DrawingTool.ERASER -> true
+            else -> false
         }
     }
 }

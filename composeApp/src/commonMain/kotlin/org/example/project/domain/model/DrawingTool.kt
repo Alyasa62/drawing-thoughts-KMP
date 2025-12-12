@@ -21,6 +21,7 @@ import org.jetbrains.compose.resources.DrawableResource
 enum class DrawingTool(
     val res: DrawableResource
 ) {
+    SELECTOR(Res.drawable.ic_line_plain), // Using line icon as placeholder or generic cursor
     PEN(Res.drawable.img_pen),
     ERASER(Res.drawable.img_eraser),
     HIGHLIGHTER(Res.drawable.img_highlighter),

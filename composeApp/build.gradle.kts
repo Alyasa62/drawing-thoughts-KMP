@@ -6,7 +6,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.composeHotReload)
+    alias(libs.plugins.room)
+    alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -33,7 +34,9 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(compose.materialIconsExtended)
-
+            
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.sqlite.bundled)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -74,6 +77,14 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+    add("kspCommonMainMetadata", libs.androidx.room.compiler)
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspJvm", libs.androidx.room.compiler)
+}
+
+// Room Schema Location
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 compose.desktop {

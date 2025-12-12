@@ -1,13 +1,18 @@
 package org.example.project.presentation.whiteboard
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import org.example.project.domain.model.DrawingTool
-import org.example.project.domain.model.DrawnPath
+import org.example.project.domain.model.DrawnShape
 
 data class WhiteBoardState(
-    val paths: List<DrawnPath> = emptyList(),
-    val currentPath: DrawnPath? = null,
-    val startingOffset: Offset? = Offset.Zero,
     val selectedTool: DrawingTool = DrawingTool.PEN,
-    val isDrawingToolCardVisible: Boolean = false
+    val isDrawingToolCardVisible: Boolean = false,
+    val selectedShapeId: String? = null,
+    val currentShape: DrawnShape? = null,
+    val shapes: List<DrawnShape> = emptyList(),
+    val startingOffset: Offset? = null,
+    val currentStrokeWidth: Float = 10f,
+    val currentColor: Color = Color.Black,
+    val canvasBackgroundColor: Color = Color.White
 )
