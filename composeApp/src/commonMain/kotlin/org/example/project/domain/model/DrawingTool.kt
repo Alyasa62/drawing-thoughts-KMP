@@ -14,6 +14,7 @@ import drawingthoughts.composeapp.generated.resources.ic_triangle_filled
 import drawingthoughts.composeapp.generated.resources.ic_triangle_outline
 import drawingthoughts.composeapp.generated.resources.img_eraser
 import drawingthoughts.composeapp.generated.resources.img_highlighter
+import drawingthoughts.composeapp.generated.resources.ic_selector_cursor
 import drawingthoughts.composeapp.generated.resources.img_laser_pen
 import drawingthoughts.composeapp.generated.resources.img_pen
 import org.jetbrains.compose.resources.DrawableResource
@@ -21,7 +22,7 @@ import org.jetbrains.compose.resources.DrawableResource
 enum class DrawingTool(
     val res: DrawableResource
 ) {
-    SELECTOR(Res.drawable.ic_line_plain), // Using line icon as placeholder or generic cursor
+    SELECTOR(Res.drawable.ic_selector_cursor),
     PEN(Res.drawable.img_pen),
     ERASER(Res.drawable.img_eraser),
     HIGHLIGHTER(Res.drawable.img_highlighter),

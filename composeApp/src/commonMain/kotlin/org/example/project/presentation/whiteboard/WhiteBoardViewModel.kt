@@ -60,11 +60,6 @@ class WhiteBoardViewModel : ViewModel() {
                 val tool = _state.value.selectedTool
                 
                 if (tool == DrawingTool.SELECTOR) {
-                    // --- SELECTION MODE ---
-                    // 1. Try to find a handle if a shape is already selected
-                    // (For MVP simplicity, skipping complex handle logic inside ViewModel, assumes dragging body moves)
-                    
-                    // 2. Or Select a new shape
                     val shapeHit = org.example.project.utils.HitTestUtil.getShapeAt(_state.value.shapes, event.offset)
                     _state.update { 
                         it.copy(
@@ -73,7 +68,6 @@ class WhiteBoardViewModel : ViewModel() {
                         ) 
                     }
                 } else {
-                    // --- DRAWING MODE ---
                     if (isFreeHandTool(tool)) {
                         currentFreeHandPoints.add(event.offset)
                     }
@@ -96,9 +90,6 @@ class WhiteBoardViewModel : ViewModel() {
 
             WhiteBoardEvent.FinishDrawing -> {
                  if (_state.value.selectedTool == DrawingTool.SELECTOR) {
-                     // Commit the move to undo stack (Optional: Optimization to not save every frame)
-                     // For now, if we dragged, we should save.
-                     // A simple way is to check if startingOffset != null.
                      _state.update { it.copy(startingOffset = null) }
                  } else {
                     val currentShape = state.value.currentShape
@@ -184,12 +175,12 @@ class WhiteBoardViewModel : ViewModel() {
     }
 
     private fun updateSelectedShapePosition(currentOffset: Offset) {
-        val startDragString = state.value.startingOffset ?: return
+        val startDragOffset = state.value.startingOffset ?: return
         val selectedId = state.value.selectedShapeId ?: return
         
         // Calculate delta
-        val deltaX = currentOffset.x - startDragString.x
-        val deltaY = currentOffset.y - startDragString.y
+        val deltaX = currentOffset.x - startDragOffset.x
+        val deltaY = currentOffset.y - startDragOffset.y
         
         // Update the list of shapes
         val updatedShapes = state.value.shapes.map { shape ->
@@ -228,9 +219,6 @@ class WhiteBoardViewModel : ViewModel() {
         val tool = state.value.selectedTool
         val color = state.value.currentColor
         val strokeWidth = state.value.currentStrokeWidth
-        // Use a temporary ID for the currently drawing shape (0L which wont clash with DB IDs easily if logic holds, or random)
-        // Ideally we should generate the ID here too, but 'currentShape' is transient.
-        // We will assign a real ID when 'FinishDrawing' creates the final shape.
         val tempId = "temp_${kotlin.random.Random.nextInt()}" 
 
         val newShape: DrawnShape = if (isFreeHandTool(tool)) {
