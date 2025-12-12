@@ -37,5 +37,13 @@ enum class DrawingTool(
     RECTANGLE_FILLED(Res.drawable.ic_rectangle_filled),
     TRIANGLE_OUTLINED(Res.drawable.ic_triangle_outline),
     TRIANGLE_FILLED(Res.drawable.ic_triangle_filled),
-    HAND(Res.drawable.ic_selector_cursor)
+    HAND(Res.drawable.ic_selector_cursor);
+    
+    fun isShape(): Boolean {
+        return this == LINE_PLANE || this == LINE_DOTTED ||
+               this == ARROW_ONE_SIDED || this == ARROW_TWO_SIDED ||
+               this == CIRCLE_OUTLINED || this == CIRCLE_FILLED ||
+               this == RECTANGLE_OUTLINED || this == RECTANGLE_FILLED ||
+               this == TRIANGLE_OUTLINED || this == TRIANGLE_FILLED
+    }
 }

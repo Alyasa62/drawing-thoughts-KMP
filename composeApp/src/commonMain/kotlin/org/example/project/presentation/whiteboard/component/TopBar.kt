@@ -1,5 +1,6 @@
 package org.example.project.presentation.whiteboard.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 
 @Composable
 fun TopBar(
@@ -34,8 +36,9 @@ fun TopBar(
     onHomeIconClick: () -> Unit,
     onUndoIconClick: () -> Unit,
     onRedoIconClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onSaveClick: () -> Unit
+    onCanvasSetupClick: () -> Unit,
+    onResetViewClick: () -> Unit,
+    onExportClick: () -> Unit
 ) {
     var isMoreOptionMenuOpened by rememberSaveable {
         mutableStateOf(false)
@@ -79,8 +82,9 @@ fun TopBar(
             MoreOptionsMenu(
                 isExpended = isMoreOptionMenuOpened,
                 onMenuDismiss = { isMoreOptionMenuOpened = false },
-                onSettingsClick = { onSettingsClick() },
-                onSaveClick = { onSaveClick() }
+                onCanvasSetupClick = onCanvasSetupClick,
+                onResetViewClick = onResetViewClick,
+                onExportClick = onExportClick
             )
         }
     }
@@ -91,32 +95,43 @@ private fun MoreOptionsMenu (
     modifier: Modifier = Modifier,
     isExpended: Boolean,
     onMenuDismiss: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onSaveClick: () -> Unit
+    onCanvasSetupClick: () -> Unit,
+    onResetViewClick: () -> Unit,
+    onExportClick: () -> Unit
 ) {
     DropdownMenu(
         expanded = isExpended,
         onDismissRequest = { onMenuDismiss() },
-        modifier = modifier
+        modifier = modifier.background(androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         DropdownMenuItem(
-            text = { Text(text = "Setting") },
-            onClick = { onSettingsClick()
-                onMenuDismiss()
+            text = { Text("Canvas Setup") },
+            onClick = { 
+                onCanvasSetupClick()
+                onMenuDismiss() 
             },
             leadingIcon = {
-                Icon(imageVector= Icons.Default.Settings, contentDescription = "Settings")
-
+                Icon(Icons.Filled.Settings, contentDescription = "Canvas Setup")
             }
         )
         DropdownMenuItem(
-            text = { Text(text = "Save Image") },
+            text = { Text("Reset View") },
             onClick = { 
-                onSaveClick()
-                onMenuDismiss()
+                onResetViewClick()
+                onMenuDismiss() 
             },
             leadingIcon = {
-                Icon(imageVector= Icons.Default.Settings, contentDescription = "Save Image")
+                Icon(Icons.Filled.Home, contentDescription = "Reset View")
+            }
+        )
+        DropdownMenuItem(
+            text = { Text("Export Image") },
+            onClick = { 
+                onExportClick()
+                onMenuDismiss() 
+            },
+            leadingIcon = {
+                Icon(Icons.Default.Share, contentDescription = "Export")
             }
         )
     }

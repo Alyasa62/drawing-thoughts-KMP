@@ -11,11 +11,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +53,7 @@ import kotlin.math.min
 import kotlin.math.max
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -55,6 +66,10 @@ fun WhiteBoardScreen(
     onEvent: (WhiteBoardEvent) -> Unit,
     imageSaver: org.example.project.utils.PlatformImageSaver
 ) {
+    var showCanvasSetup by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showStrokeSlider by remember { mutableStateOf(false) }
+    
     val viewportZoom = state.zoom
     val viewportPan = state.pan
 
@@ -167,8 +182,11 @@ fun WhiteBoardScreen(
                 onHomeIconClick = { },
                 onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
                 onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
-                onSettingsClick = { },
-                onSaveClick = {
+                onCanvasSetupClick = { showCanvasSetup = true },
+                onResetViewClick = { 
+                     onEvent(WhiteBoardEvent.OnViewportChange(1f, androidx.compose.ui.geometry.Offset.Zero))
+                },
+                onExportClick = {
                     coroutineScope.launch {
                         val bitmap = graphicsLayer.toImageBitmap()
                         val result = imageSaver.saveImage(bitmap)
@@ -177,40 +195,131 @@ fun WhiteBoardScreen(
                 }
             )
 
-            // UNIFIED INSPECTOR (Responsive)
-            // It overlays everything at the appropriate position
-             org.example.project.presentation.whiteboard.component.inspector.ResponsiveInspector(
+            // --- DIALOGS & OVERLAYS ---
+            if (showCanvasSetup) {
+                 // Simple Dialog for Canvas Settings
+                 androidx.compose.material3.AlertDialog(
+                     onDismissRequest = { showCanvasSetup = false },
+                     title = { Text("Canvas Setup") },
+                     text = {
+                         Column {
+                             Text("Background Color", style = MaterialTheme.typography.labelMedium)
+                             org.example.project.presentation.whiteboard.component.inspector.ColorPaletteRow(
+                                selectedColor = state.canvasBackgroundColor,
+                                onColorSelected = { onEvent(WhiteBoardEvent.OnBackgroundChange(it)) },
+                                colors = listOf(Color.White, Color(0xFFF8F9FA), Color(0xFFE9ECEF), Color(0xFF212529), Color.Black)
+                            )
+                         }
+                     },
+                     confirmButton = {
+                         androidx.compose.material3.TextButton(onClick = { showCanvasSetup = false }) { Text("Done") }
+                     }
+                 )
+            }
+            
+            if (showColorPicker) {
+                 // Simple Dialog for Pen Color
+                 androidx.compose.material3.AlertDialog(
+                     onDismissRequest = { showColorPicker = false },
+                     title = { Text("Pen Color") },
+                     text = {
+                         org.example.project.presentation.whiteboard.component.inspector.ColorPaletteRow(
+                                selectedColor = state.currentColor,
+                                onColorSelected = { onEvent(WhiteBoardEvent.OnColorChange(it)) },
+                                colors = listOf(Color.Black, Color.Red, Color.Blue, Color.Green, Color(0xFFFFC107), Color.Magenta, Color.White)
+                            )
+                     },
+                     confirmButton = {
+                         androidx.compose.material3.TextButton(onClick = { showColorPicker = false }) { Text("Done") }
+                     }
+                 )
+            }
+
+            // --- HUD ---
+            // --- HUD ---
+            org.example.project.presentation.whiteboard.component.DynamicHUD(
                 state = state,
-                onEvent = onEvent,
-                modifier = Modifier.fillMaxSize() 
-                // Passed fillMaxSize so BoxWithConstraints sees full screen size 
-                // and aligns itself internally (Bottom or Right)
-            )
-
-            DrawingToolFAB(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 120.dp, end = 20.dp), // Adjust for Inspector height
-                isVisible = !state.isDrawingToolCardVisible,
-                selectedTool = state.selectedTool,
-                onClick = { onEvent(WhiteBoardEvent.OnFABClick) }
-            )
-
-            DrawingToolCard(
+                onColorClick = { showColorPicker = true },
+                onStrokeWidthClick = { showStrokeSlider = true },
+                onShapeSelected = { onEvent(WhiteBoardEvent.OnDrawingToolSelected(it)) },
+                onDeleteClick = { /* Implement Delete Event */ },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 180.dp), // Push up above Inspector (approx)
-                selectedTool = state.selectedTool,
-                onToolSelected = { tool -> 
-                   if (state.selectedTool == tool) {
-                        onEvent(WhiteBoardEvent.OnDrawingToolSelected(DrawingTool.HAND))
-                    } else {
-                        onEvent(WhiteBoardEvent.OnDrawingToolSelected(tool)) 
-                    }
-                },
-                onClosedIconClick = { onEvent(WhiteBoardEvent.OnCloseDrawingToolsCard) },
-                isVisible = state.isDrawingToolCardVisible
+                    .padding(bottom = 90.dp) // Float above Dock
             )
+            
+            // --- POPUPS (Slider) ---
+            if (showStrokeSlider) {
+                 Box(
+                     modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.2f))
+                        .clickable { showStrokeSlider = false } // Dismiss on scrim click
+                        .zIndex(10f), // On top of everything
+                     contentAlignment = Alignment.BottomCenter
+                 ) {
+                     // The Actual Slider Card
+                     Surface(
+                         modifier = Modifier
+                            .padding(bottom = 150.dp) // Above HUD
+                            .clickable(enabled = false) {}, // Prevent dismiss click
+                         shape = CircleShape,
+                         color = MaterialTheme.colorScheme.surface,
+                         shadowElevation = 8.dp
+                     ) {
+                         Column(
+                            modifier = Modifier
+                                .width(60.dp)
+                                .height(200.dp)
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
+                         ) {
+                             Text("${state.currentStrokeWidth.toInt()}", style = MaterialTheme.typography.labelSmall)
+                             
+                             // Vertical Slider Hack: Rotate a horizontal slider?
+                             // Or use a vertical drag gesture box?
+                             // Compose Material3 has Slider, but only horizontal by default.
+                             // Rotate 270 deg.
+                             
+                             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                 // Rotated Slider
+                                 Slider(
+                                     value = state.currentStrokeWidth,
+                                     onValueChange = { onEvent(WhiteBoardEvent.OnStrokeWidthChange(it)) },
+                                     valueRange = 1f..50f,
+                                     modifier = Modifier
+                                        .graphicsLayer(rotationZ = 270f)
+                                        .width(150.dp) // Effective height
+                                 )
+                             }
+                             
+                             Box(
+                                 modifier = Modifier
+                                    .size(state.currentStrokeWidth.dp.coerceAtMost(30.dp))
+                                    .clip(CircleShape)
+                                    .background(state.currentColor)
+                             )
+                         }
+                     }
+                 }
+            }
+
+            org.example.project.presentation.whiteboard.component.CompactDock(
+                selectedTool = state.selectedTool,
+                onToolSelect = { onEvent(WhiteBoardEvent.OnDrawingToolSelected(it)) },
+                onStrokeWidthChange = { delta ->
+                     val newWidth = (state.currentStrokeWidth + delta).coerceIn(1f, 50f)
+                     onEvent(WhiteBoardEvent.OnStrokeWidthChange(newWidth))
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+            )
+            
+            // FAB (If we still want it? Maybe removal if Dock covers functionality? 
+            // Dock has tools. FAB was for "Open Tools". We don't need FAB anymore.)
+            // Removed DrawingToolFAB.
         }
     }
 }
@@ -253,14 +362,9 @@ private fun DrawingCanvas(
                     scaleY = zoom
                     translationX = pan.x
                     translationY = pan.y
+                    // CRITICAL: Force offscreen buffer for BlendMode.Clear to work
+                    alpha = 0.99f 
                 }
-                // --- POINTER INPUTS (Receive Pan/Zoom from Parent or Self?) ---
-                // NOTE: pointerInput is attached BEFORE graphicsLayer visually, but logically the modifier order matters.
-                // If pointerInput is before graphicsLayer, it receives untransformed events? 
-                // Wait, touch detection area is affected by layout, not graphicsLayer.
-                // So touch area is still FullScreen.
-                // Our 'toWorld' logic handles the math.
-                
                 // 1. TRANSFORM LISTENER
                 .pointerInput(zoom, pan) {
                     detectTransformGestures { _, gesturePan, gestureZoom, _ ->
@@ -269,7 +373,6 @@ private fun DrawingCanvas(
                         onEvent(WhiteBoardEvent.OnViewportChange(newZoom, newPan))
                     }
                 }
-                // ... (Other Pointer Inputs) ...
                 // 2. DRAW LISTENER
                 .pointerInput(state.selectedTool, isSelector, zoom, pan) {
                     if (state.selectedTool != DrawingTool.HAND && !isSelector) {
@@ -333,12 +436,8 @@ private fun DrawingCanvas(
             val allShapes = state.shapes + listOfNotNull(state.currentShape)
             // NO withTransform here! Drawn at World (0,0)
             
-                allShapes.forEach { shape ->
-                    val isSelected = shape.id == state.selectedShapeId
-             // ... rest of loop ...
-
-             // ... rest of loop (drawing logic is unchanged, just wrapped)
-
+            allShapes.forEach { shape ->
+                val isSelected = shape.id == state.selectedShapeId
 
                 // --- PHYSICS & ATTRIBUTES CALCULATION ---
                 var actualColor = shape.color
@@ -356,8 +455,9 @@ private fun DrawingCanvas(
                     }
 
                     DrawingTool.ERASER -> {
-                        actualColor = state.canvasBackgroundColor // "Fake" erase
+                        actualColor = Color.Transparent 
                         actualStrokeWidth = shape.strokeWidth * 1.5f
+                        actualBlendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     }
 
                     DrawingTool.LINE_DOTTED -> {
