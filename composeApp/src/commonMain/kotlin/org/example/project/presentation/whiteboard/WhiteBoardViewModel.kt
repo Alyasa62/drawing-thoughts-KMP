@@ -26,6 +26,9 @@ class WhiteBoardViewModel : ViewModel() {
 
     // Temporary storage for freehand points before smoothing
     private var currentFreeHandPoints = mutableListOf<Offset>()
+
+    // Transaction Snapshot for Undo/Redo (Transformations)
+    private var transactionSnapshot: List<DrawnShape>? = null
     
     // Repository Integration
     private val repository: org.example.project.data.repository.ShapeRepository by lazy {
@@ -175,9 +178,17 @@ class WhiteBoardViewModel : ViewModel() {
                     )
                 }
             }
+            is WhiteBoardEvent.OnResizeShape -> {
+                resizeSelectedShape(event.handle, event.dragAmount)
+            }
+            WhiteBoardEvent.OnShapeTransformStart -> {
+                 // Snapshot state before transform begins
+                 transactionSnapshot = state.value.shapes
+            }
             WhiteBoardEvent.OnShapeTransformEnd -> {
                 applyTransientTransform()
             }
+            WhiteBoardEvent.OnDeleteSelectedShape -> deleteSelectedShape()
             is WhiteBoardEvent.OnViewportChange -> {
                 _state.update { 
                     it.copy(
@@ -291,7 +302,10 @@ class WhiteBoardViewModel : ViewModel() {
         val scale = state.value.transientScale
         val offset = state.value.transientOffset
         
-        if (scale == 1f && offset == Offset.Zero) return
+        if (scale == 1f && offset == Offset.Zero) {
+            transactionSnapshot = null // No change
+            return
+        }
         
         val updatedShapes = state.value.shapes.map { shape ->
             if (shape.id == selectedId) {
@@ -345,6 +359,12 @@ class WhiteBoardViewModel : ViewModel() {
             }
         }
         
+        // COMMIT TO HISTORY (Transaction)
+        if (transactionSnapshot != null) {
+            addToHistory(transactionSnapshot!!) // Save the snapshot (OLD state)
+        }
+        transactionSnapshot = null
+
         _state.update { 
             it.copy(
                 shapes = updatedShapes,
@@ -353,5 +373,87 @@ class WhiteBoardViewModel : ViewModel() {
                 transientRotation = 0f
             )
         }
+        redoStack.clear()
+    }
+
+    private fun deleteSelectedShape() {
+        val selectedId = state.value.selectedShapeId ?: return
+        val currentShapes = state.value.shapes
+        
+        addToHistory(currentShapes) // Save state before delete
+        
+        val newShapes = currentShapes.filter { it.id != selectedId }
+        
+        _state.update { 
+            it.copy(
+                shapes = newShapes,
+                selectedShapeId = null,
+                isDrawingToolCardVisible = false
+            ) 
+        }
+        redoStack.clear()
+    }
+
+    private fun resizeSelectedShape(handle: org.example.project.utils.TransformHandle, worldDelta: Offset) {
+        val selectedId = state.value.selectedShapeId ?: return
+        val shapes = state.value.shapes
+        val shape = shapes.find { it.id == selectedId } ?: return
+        
+        // Resize Logic directly modifies the shape (Transient would be complex for individual handles)
+        // Since we snapshot at Start, we can modify directly safely for Undo support?
+        // Wait, 'OnShapeTransformStart' takes a snapshot.
+        // If we modify 'shapes' directly here, the 'transactionSnapshot' will hold the OLD state.
+        // When 'OnShapeTransformEnd' is called, it checks 'transactionSnapshot'.
+        // If we modify state directly here, we need to ensure 'OnShapeTransformEnd' logic doesn't overwrite it
+        // or that it commits it.
+        // Currently 'OnShapeTransformEnd' uses 'applyTransientTransform' which merges transient state.
+        // IF we modify actual shapes here, transient state is irrelevant (Scale=1, Offset=0).
+        // BUT 'OnShapeTransformEnd' does: "if (transactionSnapshot != null) addToHistory(snapshot)".
+        // So yes, modifying directly here is Compatibile with the Snapshot pattern!
+        
+        val updatedShapes = shapes.map { current ->
+            if (current.id == selectedId) {
+                when (current) {
+                    is DrawnShape.Geometric -> {
+                        var newStart = current.start
+                        var newEnd = current.end
+                        
+                        when (handle) {
+                            org.example.project.utils.TransformHandle.RIGHT, 
+                            org.example.project.utils.TransformHandle.TOP_RIGHT, 
+                            org.example.project.utils.TransformHandle.BOTTOM_RIGHT -> {
+                                newEnd = newEnd.copy(x = newEnd.x + worldDelta.x)
+                            }
+                            org.example.project.utils.TransformHandle.LEFT,
+                            org.example.project.utils.TransformHandle.TOP_LEFT,
+                            org.example.project.utils.TransformHandle.BOTTOM_LEFT -> {
+                                newStart = newStart.copy(x = newStart.x + worldDelta.x)
+                            }
+                            else -> {}
+                        }
+                        
+                        when (handle) {
+                            org.example.project.utils.TransformHandle.BOTTOM, 
+                            org.example.project.utils.TransformHandle.BOTTOM_LEFT, 
+                            org.example.project.utils.TransformHandle.BOTTOM_RIGHT -> {
+                                newEnd = newEnd.copy(y = newEnd.y + worldDelta.y)
+                            }
+                            org.example.project.utils.TransformHandle.TOP,
+                            org.example.project.utils.TransformHandle.TOP_LEFT,
+                            org.example.project.utils.TransformHandle.TOP_RIGHT -> {
+                                newStart = newStart.copy(y = newStart.y + worldDelta.y)
+                            }
+                            else -> {}
+                        }
+                        current.copy(start = newStart, end = newEnd)
+                    }
+                    is DrawnShape.FreeHand -> current // No resizing for Freehand yet
+                }
+            } else {
+                current
+            }
+        }
+        
+        _state.update { it.copy(shapes = updatedShapes) }
     }
 }

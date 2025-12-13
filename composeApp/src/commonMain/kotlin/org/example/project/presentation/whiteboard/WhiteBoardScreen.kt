@@ -153,26 +153,80 @@ fun WhiteBoardScreen(
                      }
                 }
                 // 4. SHAPE TRANSFORM LISTENER (Transform Logic)
+                // 4. SHAPE TRANSFORM LISTENER (Move/Drag with History Transaction)
                 .pointerInput(state.selectedTool == DrawingTool.SELECTOR, state.selectedShapeId) {
                      val isSelector = state.selectedTool == DrawingTool.SELECTOR
                      if (isSelector && state.selectedShapeId != null) {
-                        detectTransformGestures { _, gesturePan, gestureZoom, gestureRotation ->
-                             val worldPanDelta = gesturePan / viewportState.zoom
-                             onEvent(WhiteBoardEvent.OnShapeTransform(gestureZoom, worldPanDelta, gestureRotation))
-                        }
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                onEvent(WhiteBoardEvent.OnShapeTransformStart) // Snapshot State
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                val worldDragAmount = dragAmount / viewportState.zoom
+                                
+                                // Perform Hit Test contextually (Optimization: Could be done on Start)
+                                // Since 'detectDragGestures' doesn't give us the 'down' event in 'onDragStart',
+                                // we need to check where the drag STARTED. 
+                                // 'onDragStart' gives us the Offset.
+                                
+                                // Wait, simple implementation: Check Handle on Start!
+                            },
+                            onDragEnd = {
+                                onEvent(WhiteBoardEvent.OnShapeTransformEnd) // Commit Transaction
+                            },
+                            onDragCancel = {
+                                onEvent(WhiteBoardEvent.OnShapeTransformEnd) // Revert/Commit
+                            }
+                        )
                      }
                 }
                 .pointerInput(state.selectedTool == DrawingTool.SELECTOR, state.selectedShapeId) {
                      val isSelector = state.selectedTool == DrawingTool.SELECTOR
                      if (isSelector && state.selectedShapeId != null) {
-                         awaitPointerEventScope {
-                             while (true) {
-                                 val event = awaitPointerEvent()
-                                 if (event.changes.all { !it.pressed }) {
-                                     onEvent(WhiteBoardEvent.OnShapeTransformEnd)
-                                 }
-                             }
-                         }
+                        // Use a persistent variable for the current drag handle
+                        var checkHandle = org.example.project.utils.TransformHandle.NONE
+                        
+                        detectDragGestures(
+                            onDragStart = { startOffset ->
+                                onEvent(WhiteBoardEvent.OnShapeTransformStart) // Snapshot State
+                                
+                                // Determine what we hit
+                                val worldPoint = viewportState.screenToWorld(startOffset)
+                                val shape = state.shapes.find { it.id == state.selectedShapeId }
+                                if (shape != null) {
+                                    checkHandle = org.example.project.utils.GeometryHelper.getHandleAtPoint(
+                                        touchPoint = worldPoint,
+                                        bounds = org.example.project.utils.GeometryHelper.run { shape.getBounds() },
+                                        rotation = 0f,
+                                        zoom = viewportState.zoom,
+                                        density = this@pointerInput
+                                    )
+                                } else {
+                                    checkHandle = org.example.project.utils.TransformHandle.NONE
+                                }
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                val worldDragAmount = dragAmount / viewportState.zoom
+                                
+                                if (checkHandle == org.example.project.utils.TransformHandle.BODY || checkHandle == org.example.project.utils.TransformHandle.NONE) {
+                                     // Move
+                                     onEvent(WhiteBoardEvent.OnShapeTransform(1f, worldDragAmount, 0f))
+                                } else {
+                                     // Resize
+                                     onEvent(WhiteBoardEvent.OnResizeShape(checkHandle, worldDragAmount))
+                                }
+                            },
+                            onDragEnd = {
+                                onEvent(WhiteBoardEvent.OnShapeTransformEnd) // Commit Transaction
+                                checkHandle = org.example.project.utils.TransformHandle.NONE
+                            },
+                            onDragCancel = {
+                                onEvent(WhiteBoardEvent.OnShapeTransformEnd) 
+                                checkHandle = org.example.project.utils.TransformHandle.NONE
+                            }
+                        )
                      }
                 }
         ) {
@@ -305,7 +359,7 @@ fun WhiteBoardScreen(
                 onColorClick = { showColorPicker = true },
                 onStrokeWidthClick = { showStrokeSlider = true },
                 onShapeSelected = { onEvent(WhiteBoardEvent.OnDrawingToolSelected(it)) },
-                onDeleteClick = { /* Implement Delete Event */ },
+                onDeleteClick = { onEvent(WhiteBoardEvent.OnDeleteSelectedShape) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 90.dp) // Float above Dock

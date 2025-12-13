@@ -10,7 +10,10 @@ sealed interface WhiteBoardEvent {
     data class ContinueDrawing(val offset: Offset): WhiteBoardEvent
     data object FinishDrawing: WhiteBoardEvent
     data class OnShapeTransform(val zoom: Float, val pan: Offset, val rotation: Float): WhiteBoardEvent
+    data object OnShapeTransformStart: WhiteBoardEvent
     data object OnShapeTransformEnd: WhiteBoardEvent
+    data class OnResizeShape(val handle: org.example.project.utils.TransformHandle, val dragAmount: Offset): WhiteBoardEvent
+    data object OnDeleteSelectedShape: WhiteBoardEvent
     
     // Viewport
     data class OnViewportChange(val zoom: Float, val pan: Offset) : WhiteBoardEvent
