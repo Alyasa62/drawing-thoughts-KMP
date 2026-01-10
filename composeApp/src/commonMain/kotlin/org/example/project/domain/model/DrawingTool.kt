@@ -10,8 +10,14 @@ import drawingthoughts.composeapp.generated.resources.ic_line_dotted
 import drawingthoughts.composeapp.generated.resources.ic_line_plain
 import drawingthoughts.composeapp.generated.resources.ic_rectangle_filled
 import drawingthoughts.composeapp.generated.resources.ic_rectangle_outline
+import drawingthoughts.composeapp.generated.resources.ic_rectangle_rounded
 import drawingthoughts.composeapp.generated.resources.ic_triangle_filled
 import drawingthoughts.composeapp.generated.resources.ic_triangle_outline
+import drawingthoughts.composeapp.generated.resources.ic_star_outline
+import drawingthoughts.composeapp.generated.resources.ic_star_filled
+import drawingthoughts.composeapp.generated.resources.ic_diamond
+import drawingthoughts.composeapp.generated.resources.ic_pentagon
+import drawingthoughts.composeapp.generated.resources.ic_hexagon
 import drawingthoughts.composeapp.generated.resources.img_eraser
 import drawingthoughts.composeapp.generated.resources.img_highlighter
 import drawingthoughts.composeapp.generated.resources.ic_selector_cursor
@@ -35,16 +41,16 @@ enum class DrawingTool(
     CIRCLE_FILLED(Res.drawable.ic_circle_filled),
     RECTANGLE_OUTLINED(Res.drawable.ic_rectangle_outline),
     RECTANGLE_FILLED(Res.drawable.ic_rectangle_filled),
-    RECTANGLE_ROUNDED(Res.drawable.ic_rectangle_outline),
+    RECTANGLE_ROUNDED(Res.drawable.ic_rectangle_rounded),
     SQUARE_OUTLINED(Res.drawable.ic_rectangle_outline),
     SQUARE_FILLED(Res.drawable.ic_rectangle_filled),
     TRIANGLE_OUTLINED(Res.drawable.ic_triangle_outline),
     TRIANGLE_FILLED(Res.drawable.ic_triangle_filled),
-    STAR_OUTLINED(Res.drawable.ic_triangle_outline),
-    STAR_FILLED(Res.drawable.ic_triangle_filled),
-    PENTAGON(Res.drawable.ic_circle_outline),
-    HEXAGON(Res.drawable.ic_circle_outline),
-    DIAMOND(Res.drawable.ic_triangle_outline),
+    STAR_OUTLINED(Res.drawable.ic_star_outline),
+    STAR_FILLED(Res.drawable.ic_star_filled),
+    PENTAGON(Res.drawable.ic_pentagon),
+    HEXAGON(Res.drawable.ic_hexagon),
+    DIAMOND(Res.drawable.ic_diamond),
     ELLIPSE_OUTLINED(Res.drawable.ic_circle_outline),
     ELLIPSE_FILLED(Res.drawable.ic_circle_filled),
     HAND(Res.drawable.ic_selector_cursor);

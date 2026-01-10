@@ -486,7 +486,7 @@ fun WhiteBoardScreen(
                 isVisible = showShapeVariants,
                 onToolSelected = { tool ->
                     onEvent(WhiteBoardEvent.OnDrawingToolSelected(tool))
-                    showShapeVariants = false // Hide after selection
+                    // Keep menu visible after selection - user can toggle it via bottom dock
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -812,6 +812,144 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                                 }
                                 drawPath(startArrowPath, actualColor, actualAlpha, androidx.compose.ui.graphics.drawscope.Fill, blendMode = actualBlendMode)
                             }
+                        }
+
+                        DrawingTool.RECTANGLE_ROUNDED -> {
+                            drawRoundRect(
+                                color = actualColor,
+                                topLeft = topLeft,
+                                size = size,
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                                style = style,
+                                alpha = actualAlpha,
+                                blendMode = actualBlendMode
+                            )
+                        }
+
+                        DrawingTool.SQUARE_OUTLINED, DrawingTool.SQUARE_FILLED -> {
+                            val sideLength = min(size.width, size.height)
+                            val squareSize = Size(sideLength, sideLength)
+                            drawRect(
+                                color = actualColor,
+                                topLeft = topLeft,
+                                size = squareSize,
+                                style = style,
+                                alpha = actualAlpha,
+                                blendMode = actualBlendMode
+                            )
+                        }
+
+                        DrawingTool.ELLIPSE_OUTLINED, DrawingTool.ELLIPSE_FILLED -> {
+                            drawOval(
+                                color = actualColor,
+                                topLeft = topLeft,
+                                size = size,
+                                style = style,
+                                alpha = actualAlpha,
+                                blendMode = actualBlendMode
+                            )
+                        }
+
+                        DrawingTool.STAR_OUTLINED, DrawingTool.STAR_FILLED -> {
+                            val centerX = (shape.start.x + shape.end.x) / 2f
+                            val centerY = (shape.start.y + shape.end.y) / 2f
+                            val radiusX = abs(shape.end.x - shape.start.x) / 2f
+                            val radiusY = abs(shape.end.y - shape.start.y) / 2f
+                            val points = 5
+                            val outerRadius = max(radiusX, radiusY)
+                            val innerRadius = outerRadius * 0.4f
+
+                            val starPath = androidx.compose.ui.graphics.Path().apply {
+                                for (i in 0 until points * 2) {
+                                    val angle = (i * kotlin.math.PI / points).toFloat() - (kotlin.math.PI / 2).toFloat()
+                                    val radius = if (i % 2 == 0) outerRadius else innerRadius
+                                    val x = centerX + radius * kotlin.math.cos(angle)
+                                    val y = centerY + radius * kotlin.math.sin(angle)
+                                    if (i == 0) moveTo(x, y) else lineTo(x, y)
+                                }
+                                close()
+                            }
+
+                            drawPath(
+                                path = starPath,
+                                color = actualColor,
+                                alpha = actualAlpha,
+                                style = style,
+                                blendMode = actualBlendMode
+                            )
+                        }
+
+                        DrawingTool.PENTAGON -> {
+                            val centerX = (shape.start.x + shape.end.x) / 2f
+                            val centerY = (shape.start.y + shape.end.y) / 2f
+                            val radius = max(abs(shape.end.x - shape.start.x), abs(shape.end.y - shape.start.y)) / 2f
+                            val sides = 5
+
+                            val pentagonPath = androidx.compose.ui.graphics.Path().apply {
+                                for (i in 0 until sides) {
+                                    val angle = (i * 2 * kotlin.math.PI / sides).toFloat() - (kotlin.math.PI / 2).toFloat()
+                                    val x = centerX + radius * kotlin.math.cos(angle)
+                                    val y = centerY + radius * kotlin.math.sin(angle)
+                                    if (i == 0) moveTo(x, y) else lineTo(x, y)
+                                }
+                                close()
+                            }
+
+                            drawPath(
+                                path = pentagonPath,
+                                color = actualColor,
+                                alpha = actualAlpha,
+                                style = style,
+                                blendMode = actualBlendMode
+                            )
+                        }
+
+                        DrawingTool.HEXAGON -> {
+                            val centerX = (shape.start.x + shape.end.x) / 2f
+                            val centerY = (shape.start.y + shape.end.y) / 2f
+                            val radius = max(abs(shape.end.x - shape.start.x), abs(shape.end.y - shape.start.y)) / 2f
+                            val sides = 6
+
+                            val hexagonPath = androidx.compose.ui.graphics.Path().apply {
+                                for (i in 0 until sides) {
+                                    val angle = (i * 2 * kotlin.math.PI / sides).toFloat() - (kotlin.math.PI / 2).toFloat()
+                                    val x = centerX + radius * kotlin.math.cos(angle)
+                                    val y = centerY + radius * kotlin.math.sin(angle)
+                                    if (i == 0) moveTo(x, y) else lineTo(x, y)
+                                }
+                                close()
+                            }
+
+                            drawPath(
+                                path = hexagonPath,
+                                color = actualColor,
+                                alpha = actualAlpha,
+                                style = style,
+                                blendMode = actualBlendMode
+                            )
+                        }
+
+                        DrawingTool.DIAMOND -> {
+                            val centerX = (shape.start.x + shape.end.x) / 2f
+                            val centerY = (shape.start.y + shape.end.y) / 2f
+                            val width = abs(shape.end.x - shape.start.x) / 2f
+                            val height = abs(shape.end.y - shape.start.y) / 2f
+
+                            val diamondPath = androidx.compose.ui.graphics.Path().apply {
+                                moveTo(centerX, centerY - height)  // Top
+                                lineTo(centerX + width, centerY)   // Right
+                                lineTo(centerX, centerY + height)  // Bottom
+                                lineTo(centerX - width, centerY)   // Left
+                                close()
+                            }
+
+                            drawPath(
+                                path = diamondPath,
+                                color = actualColor,
+                                alpha = actualAlpha,
+                                style = style,
+                                blendMode = actualBlendMode
+                            )
                         }
 
                         else -> {}

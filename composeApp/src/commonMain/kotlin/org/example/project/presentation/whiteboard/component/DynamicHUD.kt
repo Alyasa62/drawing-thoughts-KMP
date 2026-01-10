@@ -84,8 +84,9 @@ fun DynamicHUD(
                     // Shape Gallery
                     val shapeTools = listOf(
                         DrawingTool.RECTANGLE_OUTLINED,
-                        DrawingTool.CIRCLE_OUTLINED,
+                        DrawingTool.ELLIPSE_OUTLINED,
                         DrawingTool.TRIANGLE_OUTLINED,
+                        DrawingTool.DIAMOND,
                         DrawingTool.LINE_PLANE,
                         DrawingTool.ARROW_ONE_SIDED
                     )
