@@ -22,4 +22,7 @@ data class WhiteBoardState(
     val canvasBackgroundColor: Color = Color.White,
     val transientScale: Float = 1f,
     val transientOffset: Offset = Offset.Zero,
-    val transientRotation: Float = 0f)
+    val transientRotation: Float = 0f,
+    val isObjectEraserEnabled: Boolean = false,
+    val isDragging: Boolean = false,
+    val dragStartPosition: Offset? = null)

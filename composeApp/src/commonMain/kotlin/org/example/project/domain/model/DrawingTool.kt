@@ -35,15 +35,41 @@ enum class DrawingTool(
     CIRCLE_FILLED(Res.drawable.ic_circle_filled),
     RECTANGLE_OUTLINED(Res.drawable.ic_rectangle_outline),
     RECTANGLE_FILLED(Res.drawable.ic_rectangle_filled),
+    RECTANGLE_ROUNDED(Res.drawable.ic_rectangle_outline),
+    SQUARE_OUTLINED(Res.drawable.ic_rectangle_outline),
+    SQUARE_FILLED(Res.drawable.ic_rectangle_filled),
     TRIANGLE_OUTLINED(Res.drawable.ic_triangle_outline),
     TRIANGLE_FILLED(Res.drawable.ic_triangle_filled),
+    STAR_OUTLINED(Res.drawable.ic_triangle_outline),
+    STAR_FILLED(Res.drawable.ic_triangle_filled),
+    PENTAGON(Res.drawable.ic_circle_outline),
+    HEXAGON(Res.drawable.ic_circle_outline),
+    DIAMOND(Res.drawable.ic_triangle_outline),
+    ELLIPSE_OUTLINED(Res.drawable.ic_circle_outline),
+    ELLIPSE_FILLED(Res.drawable.ic_circle_filled),
     HAND(Res.drawable.ic_selector_cursor);
-    
+
     fun isShape(): Boolean {
         return this == LINE_PLANE || this == LINE_DOTTED ||
                this == ARROW_ONE_SIDED || this == ARROW_TWO_SIDED ||
                this == CIRCLE_OUTLINED || this == CIRCLE_FILLED ||
                this == RECTANGLE_OUTLINED || this == RECTANGLE_FILLED ||
-               this == TRIANGLE_OUTLINED || this == TRIANGLE_FILLED
+               this == RECTANGLE_ROUNDED || this == SQUARE_OUTLINED || this == SQUARE_FILLED ||
+               this == TRIANGLE_OUTLINED || this == TRIANGLE_FILLED ||
+               this == STAR_OUTLINED || this == STAR_FILLED ||
+               this == PENTAGON || this == HEXAGON || this == DIAMOND ||
+               this == ELLIPSE_OUTLINED || this == ELLIPSE_FILLED
+    }
+
+    fun getShapeFamily(): String? {
+        return when (this) {
+            RECTANGLE_OUTLINED, RECTANGLE_FILLED, RECTANGLE_ROUNDED, SQUARE_OUTLINED, SQUARE_FILLED -> "rectangle"
+            CIRCLE_OUTLINED, CIRCLE_FILLED, ELLIPSE_OUTLINED, ELLIPSE_FILLED -> "circle"
+            TRIANGLE_OUTLINED, TRIANGLE_FILLED -> "triangle"
+            LINE_PLANE, LINE_DOTTED -> "line"
+            ARROW_ONE_SIDED, ARROW_TWO_SIDED -> "arrow"
+            STAR_OUTLINED, STAR_FILLED, PENTAGON, HEXAGON, DIAMOND -> "polygon"
+            else -> null
+        }
     }
 }

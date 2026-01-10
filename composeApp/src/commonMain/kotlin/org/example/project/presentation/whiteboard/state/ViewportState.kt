@@ -13,28 +13,76 @@ import androidx.compose.ui.geometry.Offset
 @Stable
 class ViewportState(
     initialZoom: Float = 1f,
-    initialPan: Offset = Offset.Zero
+    initialPan: Offset = Offset.Zero,
+    private val viewportSize: androidx.compose.ui.geometry.Size = androidx.compose.ui.geometry.Size(1000f, 1000f) // Default fallback
 ) {
+    // MASSIVE WORLD CONSTANTS
+    val WORLD_WIDTH = 5000f
+    val WORLD_HEIGHT = 5000f
+    
     var zoom by mutableStateOf(initialZoom)
         private set
     
     var pan by mutableStateOf(initialPan)
         private set
 
+    // Updates the known viewport size for clamping (called from UI)
+    var currentViewportSize by mutableStateOf(viewportSize)
+
+    fun updateViewportSize(size: androidx.compose.ui.geometry.Size) {
+        currentViewportSize = size
+    }
+
+    private fun clampPan(proposedPan: Offset, currentZoom: Float): Offset {
+        // Calculate the maximum allowed scroll (negative values)
+        // Logic: The Viewport (Red Box) is 'currentViewportSize'. 
+        // The World (Black Box) is (WORLD_WIDTH * zoom, WORLD_HEIGHT * zoom).
+        // Pan.x goes from 0 (Left edge) to -(WorldWidth*Zoom - ViewportWidth) (Right edge)
+        
+        val maxScrollX = -(WORLD_WIDTH * currentZoom - currentViewportSize.width).coerceAtLeast(0f)
+        val maxScrollY = -(WORLD_HEIGHT * currentZoom - currentViewportSize.height).coerceAtLeast(0f)
+        
+        return Offset(
+            x = proposedPan.x.coerceIn(maxScrollX, 0f),
+            y = proposedPan.y.coerceIn(maxScrollY, 0f)
+        )
+    }
+
     fun transform(zoomChange: Float, panChange: Offset) {
         // Apply changes
-        // Note: Real "Google Maps" style zooming usually pivots around the centroid.
-        // For now, adhering to the "Simple 1:1" request.
         val newZoom = (zoom * zoomChange).coerceIn(0.1f, 5f)
-        val newPan = pan + panChange
+        val proposedPan = pan + panChange
+        
+        // Apply Clamping
+        val clampedPan = clampPan(proposedPan, newZoom)
         
         zoom = newZoom
-        pan = newPan
+        pan = clampedPan
     }
     
     fun snapTo(targetZoom: Float, targetPan: Offset) {
         if (targetZoom != zoom) zoom = targetZoom
         if (targetPan != pan) pan = targetPan
+    }
+
+    fun zoomRelativeTo(zoomFactor: Float, pivot: Offset) {
+        // 1. Calculate the World Point under the Pivot
+        //    World = (Screen - Pan) / Zoom
+        val worldPoint = (pivot - pan) / zoom
+        
+        // 2. Apply new Zoom
+        //    Zoom = Current * Factor
+        val newZoom = (zoom * zoomFactor).coerceIn(0.1f, 5f)
+        
+        // 3. Recalculate Pan to keep World Point under Pivot
+        //    NewPan = Pivot - (WorldPoint * NewZoom)
+        val proposedPan = pivot - (worldPoint * newZoom)
+
+        // 4. Clamp
+        val clampedPan = clampPan(proposedPan, newZoom)
+
+        zoom = newZoom
+        pan = clampedPan
     }
 
     /**

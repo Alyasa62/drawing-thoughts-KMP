@@ -45,7 +45,7 @@ fun TopBar(
     }
 
     Row(modifier = modifier) {
-        FilledIconButton(onClick = { onHomeIconClick() }) {
+        FilledIconButton(onClick = { onResetViewClick() }) {
             Icon(
                 imageVector = Icons.Filled.Home,
                 contentDescription = "Home",

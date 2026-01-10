@@ -32,7 +32,8 @@ fun CompactDock(
     modifier: Modifier = Modifier,
     selectedTool: DrawingTool,
     onToolSelect: (DrawingTool) -> Unit, // Always non-null (pass HAND for view mode)
-    onStrokeWidthChange: (Float) -> Unit, 
+    onStrokeWidthChange: (Float) -> Unit,
+    onShapeClick: () -> Unit = {}
 ) {
     // Helper to toggle: If clicked == current, select HAND (null equivalent for drawing)
     fun toggleTool(tool: DrawingTool) {
@@ -92,11 +93,13 @@ fun CompactDock(
                 onClick = { toggleTool(DrawingTool.ERASER) }
             )
             
-            // 5. SHAPES
+            // 5. SHAPES - clicking toggles the variants menu
              DockIcon(
                 tool = DrawingTool.RECTANGLE_OUTLINED,
                 isSelected = selectedTool.isShape(),
-                onClick = { toggleTool(DrawingTool.RECTANGLE_OUTLINED) } 
+                onClick = {
+                    onShapeClick()
+                }
             )
         }
     }

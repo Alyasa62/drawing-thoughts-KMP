@@ -21,172 +21,138 @@ import org.example.project.domain.model.DrawnShape
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * Minimap Component
+ *
+ * ARCHITECTURE:
+ * - Shows the entire 5000x5000 world (Black Box)
+ * - Displays a red viewport indicator showing the visible screen area (Red Box)
+ * - Tap to jump: Centers the viewport on the tapped world coordinate
+ *
+ * CRITICAL FIX:
+ * - viewportSize parameter is now the ACTUAL SCREEN SIZE (e.g., 1920x1080), not world size
+ * - Viewport calculation uses strict coordinate mapping: World -> Minimap
+ * - Red box is clamped to never exceed the minimap bounds
+ */
 @Composable
 fun Minimap(
     modifier: Modifier = Modifier,
     shapes: List<DrawnShape>,
     viewportZoom: Float,
     viewportPan: Offset,
-    viewportSize: Size,
+    viewportSize: Size, // ACTUAL SCREEN SIZE in pixels (e.g., 1920x1080)
     onJumpTo: (Offset) -> Unit
 ) {
-    if (shapes.isEmpty()) return
+    // FIXED WORLD CONSTANTS (The "Bounded Infinite Canvas")
+    val WORLD_WIDTH = 5000f
+    val WORLD_HEIGHT = 5000f
 
-    // 1. Calculate World Bounds
-    // We cache this calculation or assume it's fast enough for ~100 shapes. For thousands, use derivedStateOf in VM.
-    val worldBounds = remember(shapes) {
-        var minX = Float.POSITIVE_INFINITY
-        var minY = Float.POSITIVE_INFINITY
-        var maxX = Float.NEGATIVE_INFINITY
-        var maxY = Float.NEGATIVE_INFINITY
-        
-        shapes.forEach { shape ->
-            val bounds = getShapeBounds(shape)
-            minX = min(minX, bounds.left)
-            minY = min(minY, bounds.top)
-            maxX = max(maxX, bounds.right)
-            maxY = max(maxY, bounds.bottom)
-        }
-        
-        // Add padding
-        val padding = 1000f // World units padding
-        Rect(minX - padding, minY - padding, maxX + padding, maxY + padding)
-    }
+    // World Bounds (The "Black Box" - everything is drawn here)
+    val worldBounds = Rect(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT)
 
-    // Aspect Ratio Logic
-    // Minimap fits into the box, preserving aspect ratio of the world? 
-    // Usually Minimap is a fixed square/rect implies non-uniform scale OR we toggle mapping.
-    // Let's assume Uniform fill for simplicity.
-    
     Box(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.8f))
-            .border(1.dp, Color.Gray)
-            .pointerInput(worldBounds) {
-                detectTapGestures { tapOffset ->
-                    // Convert Tap(Minimap) -> World -> Viewport Pan
-                    // ... Logic implemented inside Canvas commonly
-                }
-            }
+            .background(Color.White.copy(alpha = 0.9f))
+            .border(1.dp, Color.Black.copy(alpha = 0.2f))
     ) {
         Canvas(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
             detectTapGestures { tapOffset ->
-                // Reverse Mapping: Minimap -> World
-                val mapWidth = size.width
-                val mapHeight = size.height
-                
-                val worldWidth = worldBounds.width
-                val worldHeight = worldBounds.height
-                
-                // Scale factors
-                val scaleX = mapWidth / worldWidth
-                val scaleY = mapHeight / worldHeight
-                val scale = min(scaleX, scaleY) // Uniform scale to fit
-                
-                // Centering the world in the minimap
-                val mapContentWidth = worldWidth * scale
-                val mapContentHeight = worldHeight * scale
-                val offsetX = (mapWidth - mapContentWidth) / 2
-                val offsetY = (mapHeight - mapContentHeight) / 2
-                
-                // (Tap - Offset) / Scale + WorldMin = WorldTarget
-                val worldTargetX = (tapOffset.x - offsetX) / scale + worldBounds.left
-                val worldTargetY = (tapOffset.y - offsetY) / scale + worldBounds.top
-                
-                // We want this WorldTarget to be at the CENTER of the Viewport
-                // World(center) = (Screen(center) - pan) / zoom
-                // pan = Screen(center) - World(center) * zoom
-                val screenCenterX = viewportSize.width / 2
-                val screenCenterY = viewportSize.height / 2
-                
-                val newPanX = screenCenterX - worldTargetX * viewportZoom
-                val newPanY = screenCenterY - worldTargetY * viewportZoom
-                
+                // Map Tap (Minimap Pixel) -> World Coordinate
+                val mapWidth = size.width.toFloat()
+                val mapHeight = size.height.toFloat()
+
+                // Minimap Scale: How many pixels per world unit
+                val scaleX = mapWidth / WORLD_WIDTH
+                val scaleY = mapHeight / WORLD_HEIGHT
+
+                // Convert tap position to world coordinates
+                val worldX = tapOffset.x / scaleX
+                val worldY = tapOffset.y / scaleY
+
+                // Calculate new pan to center the viewport on this world point
+                // Formula: Pan = Screen_Center - (World_Point * Zoom)
+                // This places the world point at the center of the screen
+                val newPanX = (viewportSize.width / 2f) - (worldX * viewportZoom)
+                val newPanY = (viewportSize.height / 2f) - (worldY * viewportZoom)
+
                 onJumpTo(Offset(newPanX, newPanY))
             }
         }) {
-             val mapWidth = size.width
-             val mapHeight = size.height
-             val worldWidth = worldBounds.width
-             val worldHeight = worldBounds.height
-             
-             val scaleX = mapWidth / worldWidth
-             val scaleY = mapHeight / worldHeight
-             val scale = min(scaleX, scaleY)
-             
-             val mapContentWidth = worldWidth * scale
-             val mapContentHeight = worldHeight * scale
-             val offsetX = (mapWidth - mapContentWidth) / 2
-             val offsetY = (mapHeight - mapContentHeight) / 2
-             
-             // Helper transform function (World -> Minimap)
-             fun toMap(worldPt: Offset): Offset {
-                 val relX = worldPt.x - worldBounds.left
-                 val relY = worldPt.y - worldBounds.top
-                 return Offset(
-                     offsetX + relX * scale,
-                     offsetY + relY * scale
-                 )
-             }
-             
-             // 2. Draw Shapes (Simplified)
+             val mapWidth = size.width.toFloat()
+             val mapHeight = size.height.toFloat()
+
+             // Minimap scale factors
+             val scaleX = mapWidth / WORLD_WIDTH
+             val scaleY = mapHeight / WORLD_HEIGHT
+
+             // =====================================================================
+             // RENDER SHAPES (Optimized preview)
+             // =====================================================================
              shapes.forEach { shape ->
-                 val bounds = getShapeBounds(shape)
-                 val topLeft = toMap(bounds.topLeft)
-                 val bottomRight = toMap(bounds.bottomRight)
-                 val size = Size(bottomRight.x - topLeft.x, bottomRight.y - topLeft.y)
-                 
-                 // Minimum size for visibility
-                 val visSize = Size(max(size.width, 2f), max(size.height, 2f))
-                 
+                 val bounds = org.example.project.utils.GeometryHelper.run { shape.getBounds() }
+
+                 // Transform shape bounds from world coords to minimap coords
+                 val left = bounds.left * scaleX
+                 val top = bounds.top * scaleY
+                 val right = bounds.right * scaleX
+                 val bottom = bounds.bottom * scaleY
+
+                 // Ensure minimum visibility (2px minimum size)
+                 val w = max(right - left, 2f)
+                 val h = max(bottom - top, 2f)
+
                  drawRect(
                      color = shape.color,
-                     topLeft = topLeft,
-                     size = visSize,
+                     topLeft = Offset(left, top),
+                     size = Size(w, h),
                      style = androidx.compose.ui.graphics.drawscope.Fill
                  )
              }
-             
-             // 3. Draw Viewport Rect
-             // Current Viewport in World Coords:
-             // Left = -pan.x / zoom
-             // Top = -pan.y / zoom
-             // Right = (width - pan.x) / zoom
-             val vpLeft = (-viewportPan.x / viewportZoom)
-             val vpTop = (-viewportPan.y / viewportZoom)
-             val vpRight = ((viewportSize.width - viewportPan.x) / viewportZoom)
-             val vpBottom = ((viewportSize.height - viewportPan.y) / viewportZoom)
-             
-             val mapVpTopLeft = toMap(Offset(vpLeft, vpTop))
-             val mapVpBottomRight = toMap(Offset(vpRight, vpBottom))
-             val mapVpSize = Size(mapVpBottomRight.x - mapVpTopLeft.x, mapVpBottomRight.y - mapVpTopLeft.y)
 
+             // =====================================================================
+             // RENDER VIEWPORT INDICATOR (The "Red Box")
+             // =====================================================================
+             // The viewport shows which part of the world is currently visible on screen.
+             //
+             // Viewport formula (World Coordinates):
+             // - Top-Left: (-Pan / Zoom)
+             // - Bottom-Right: ((ScreenSize - Pan) / Zoom)
+             //
+             // The viewport represents the world area that maps to the screen.
+
+             // Calculate viewport bounds in world coordinates
+             val vpLeftWorld = -viewportPan.x / viewportZoom
+             val vpTopWorld = -viewportPan.y / viewportZoom
+             val vpRightWorld = (viewportSize.width - viewportPan.x) / viewportZoom
+             val vpBottomWorld = (viewportSize.height - viewportPan.y) / viewportZoom
+
+             // Transform viewport bounds to minimap coordinates
+             val mapVpLeft = vpLeftWorld * scaleX
+             val mapVpTop = vpTopWorld * scaleY
+             val mapVpRight = vpRightWorld * scaleX
+             val mapVpBottom = vpBottomWorld * scaleY
+
+             // Calculate viewport size in minimap coords
+             val mapVpWidth = mapVpRight - mapVpLeft
+             val mapVpHeight = mapVpBottom - mapVpTop
+
+             // Clamp viewport indicator to minimap bounds
+             // This prevents the red box from drifting outside the minimap
+             val clampedLeft = mapVpLeft.coerceIn(0f, mapWidth)
+             val clampedTop = mapVpTop.coerceIn(0f, mapHeight)
+             val clampedRight = mapVpRight.coerceIn(0f, mapWidth)
+             val clampedBottom = mapVpBottom.coerceIn(0f, mapHeight)
+
+             val clampedWidth = (clampedRight - clampedLeft).coerceAtLeast(2f)
+             val clampedHeight = (clampedBottom - clampedTop).coerceAtLeast(2f)
+
+             // Draw viewport indicator (Red Box)
              drawRect(
                  color = Color.Red,
-                 topLeft = mapVpTopLeft,
-                 size = mapVpSize,
+                 topLeft = Offset(clampedLeft, clampedTop),
+                 size = Size(clampedWidth, clampedHeight),
                  style = Stroke(width = 2.dp.toPx())
              )
-        }
-    }
-}
-
-private fun getShapeBounds(shape: DrawnShape): Rect {
-    return when (shape) {
-        is DrawnShape.Geometric -> {
-             Rect(
-                 min(shape.start.x, shape.end.x),
-                 min(shape.start.y, shape.end.y),
-                 max(shape.start.x, shape.end.x),
-                 max(shape.start.y, shape.end.y)
-             )
-        }
-        is DrawnShape.FreeHand -> {
-             var minX = Float.POSITIVE_INFINITY; var maxX = Float.NEGATIVE_INFINITY
-             var minY = Float.POSITIVE_INFINITY; var maxY = Float.NEGATIVE_INFINITY
-             if (shape.points.isEmpty()) return Rect.Zero
-             shape.points.forEach { minX = min(minX, it.x); maxX = max(maxX, it.x); minY = min(minY, it.y); maxY = max(maxY, it.y) }
-             Rect(minX, minY, maxX, maxY)
         }
     }
 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.project.domain.model.DrawingTool
 import org.example.project.domain.model.DrawnShape
+import org.example.project.utils.GeometryHelper.getBounds
 import org.example.project.utils.PathSmoother
 import kotlin.math.max
 import kotlin.math.min
@@ -63,11 +64,8 @@ class WhiteBoardViewModel : ViewModel() {
             is WhiteBoardEvent.StartDrawing -> {
                 currentFreeHandPoints.clear()
                 val tool = _state.value.selectedTool
-                
+
                 if (tool == DrawingTool.SELECTOR) {
-                    // ARCHITECTURE FIX: "What You See Is What You Touch"
-                    // 1. Strict Visibility: No Erasers
-                    // 2. Coordinate Integrity: No Zero-Size Geometric shapes (unless points, but mostly noise)
                     val visibleShapes = _state.value.shapes.filter { shape ->
                         val isEraser = shape.drawingTool == DrawingTool.ERASER
                         val isInvisibleColor = shape.color == _state.value.canvasBackgroundColor || shape.color == Color.Transparent
@@ -75,9 +73,9 @@ class WhiteBoardViewModel : ViewModel() {
                              is DrawnShape.Geometric -> {
                                  val w = kotlin.math.abs(shape.start.x - shape.end.x)
                                  val h = kotlin.math.abs(shape.start.y - shape.end.y)
-                                 w > 5f || h > 5f // Increased threshold to 5px to avoid tiny noise
+                                 w > 5f || h > 5f
                              }
-                             is DrawnShape.FreeHand -> shape.points.size > 2 // Need at least a line segment
+                             is DrawnShape.FreeHand -> shape.points.size > 2
                         }
                         !isEraser && !isInvisibleColor && isValidSize
                     }
@@ -89,6 +87,13 @@ class WhiteBoardViewModel : ViewModel() {
                         ) 
                     }
                 } else {
+                    // DRAWING TOOLS (Pen, Highlighter, Eraser, etc.)
+                    // Object Eraser: delete whole strokes instead of painting a path.
+                    if (tool == DrawingTool.ERASER && _state.value.isObjectEraserEnabled) {
+                        performObjectErase(event.offset)
+                        return
+                    }
+
                     if (isFreeHandTool(tool)) {
                         currentFreeHandPoints.add(event.offset)
                     }
@@ -102,9 +107,15 @@ class WhiteBoardViewModel : ViewModel() {
             }
 
             is WhiteBoardEvent.ContinueDrawing -> {
-                if (_state.value.selectedTool == DrawingTool.SELECTOR) {
+                val tool = _state.value.selectedTool
+                if (tool == DrawingTool.SELECTOR) {
                    updateSelectedShapePosition(event.offset)
                 } else {
+                   // Object eraser keeps erasing as you drag instead of drawing a new stroke.
+                   if (tool == DrawingTool.ERASER && _state.value.isObjectEraserEnabled) {
+                       performObjectErase(event.offset)
+                       return
+                   }
                    updateContinuingShape(event.offset)
                 }
             }
@@ -164,10 +175,20 @@ class WhiteBoardViewModel : ViewModel() {
                 _state.update { it.copy(currentStrokeWidth = event.width) }
             }
             is WhiteBoardEvent.OnColorChange -> {
-                _state.update { it.copy(currentColor = event.color) }
+                _state.update { current ->
+                    // The Eraser is a transparency brush; it does not own a color.
+                    if (current.selectedTool == DrawingTool.ERASER) {
+                        current
+                    } else {
+                        current.copy(currentColor = event.color)
+                    }
+                }
             }
             is WhiteBoardEvent.OnBackgroundChange -> {
                 _state.update { it.copy(canvasBackgroundColor = event.color) }
+            }
+            is WhiteBoardEvent.OnToggleEraseMode -> {
+                _state.update { it.copy(isObjectEraserEnabled = event.enabled) }
             }
             is WhiteBoardEvent.OnShapeTransform -> {
                 _state.update { 
@@ -184,8 +205,21 @@ class WhiteBoardViewModel : ViewModel() {
             WhiteBoardEvent.OnShapeTransformStart -> {
                  // Snapshot state before transform begins
                  transactionSnapshot = state.value.shapes
+
+                 // Capture original position of selected shape
+                 val selectedShape = state.value.shapes.find { it.id == state.value.selectedShapeId }
+                 val originalCenter = selectedShape?.let { shape ->
+                     val bounds = org.example.project.utils.GeometryHelper.run { shape.getBounds() }
+                     Offset(
+                         (bounds.left + bounds.right) / 2f,
+                         (bounds.top + bounds.bottom) / 2f
+                     )
+                 }
+
+                 _state.update { it.copy(isDragging = true, dragStartPosition = originalCenter) }
             }
             WhiteBoardEvent.OnShapeTransformEnd -> {
+                _state.update { it.copy(isDragging = false, dragStartPosition = null) }
                 applyTransientTransform()
             }
             WhiteBoardEvent.OnDeleteSelectedShape -> deleteSelectedShape()
@@ -266,7 +300,13 @@ class WhiteBoardViewModel : ViewModel() {
     private fun updateContinuingShape(currentOffset: Offset) {
         val startOffset = state.value.startingOffset ?: return
         val tool = state.value.selectedTool
-        val color = state.value.currentColor
+        // The Eraser is a transparency brush – its "color" is irrelevant.
+        // We still persist a color value for non-eraser tools for compatibility.
+        val color = if (tool == DrawingTool.ERASER) {
+            Color.Black // Placeholder, never rendered – eraser uses BlendMode.Clear.
+        } else {
+            state.value.currentColor
+        }
         val strokeWidth = state.value.currentStrokeWidth
         val tempId = "temp_${kotlin.random.Random.nextInt()}" 
 
@@ -284,7 +324,8 @@ class WhiteBoardViewModel : ViewModel() {
             DrawnShape.FreeHand(tempId, color, strokeWidth, tool, path, currentFreeHandPoints.toList())
         } else {
             // Geometric shapes
-            DrawnShape.Geometric(tempId, color, strokeWidth, tool, startOffset, currentOffset)
+            val fixedStart = if (startOffset == Offset.Unspecified) currentOffset else startOffset
+            DrawnShape.Geometric(tempId, color, strokeWidth, tool, fixedStart, currentOffset)
         }
 
         _state.update { it.copy(currentShape = newShape) }
@@ -295,6 +336,34 @@ class WhiteBoardViewModel : ViewModel() {
             DrawingTool.PEN, DrawingTool.HIGHLIGHTER, DrawingTool.LASER_PEN, DrawingTool.ERASER -> true
             else -> false
         }
+    }
+
+    /**
+     * "Object Eraser" – deletes entire strokes whose bounds intersect the touch point.
+     * This operates on already-committed shapes instead of drawing a new stroke.
+     */
+    private fun performObjectErase(worldPoint: Offset) {
+        val currentShapes = state.value.shapes
+        if (currentShapes.isEmpty()) return
+
+        // Only consider visible, non-eraser strokes as erasable "objects".
+        val remaining = currentShapes.filter { shape ->
+            val isEraserStroke = shape.drawingTool == DrawingTool.ERASER
+            if (isEraserStroke) {
+                true
+            } else {
+                // Remove stroke if the touch point falls inside its bounds.
+                !shape.getBounds().contains(worldPoint)
+            }
+        }
+
+        if (remaining.size == currentShapes.size) return // Nothing hit
+
+        // Snapshot for undo BEFORE mutating.
+        addToHistory(currentShapes)
+        redoStack.clear()
+
+        _state.update { it.copy(shapes = remaining, selectedShapeId = null) }
     }
 
     private fun applyTransientTransform() {

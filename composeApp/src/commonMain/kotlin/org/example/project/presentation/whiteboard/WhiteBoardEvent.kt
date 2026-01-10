@@ -28,4 +28,5 @@ sealed interface WhiteBoardEvent {
     data class OnStrokeWidthChange(val width: Float): WhiteBoardEvent
     data class OnColorChange(val color: Color): WhiteBoardEvent
     data class OnBackgroundChange(val color: Color): WhiteBoardEvent
+    data class OnToggleEraseMode(val enabled: Boolean): WhiteBoardEvent
 }
