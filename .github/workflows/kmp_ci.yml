@@ -1,0 +1,68 @@
+name: KMP Build & Release
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # JDK 17 is required for modern Android Gradle Plugin (AGP 8+)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # 1. Build the Android APK
+      - name: Build Android Debug APK
+        run: ./gradlew :composeApp:assembleDebug
+
+      # 2. Rename the APK to "DrawingThoughts.apk"
+      # Note: Adjust 'composeApp' if your module name is different (e.g., 'app')
+      - name: Rename APK
+        run: |
+          mv composeApp/build/outputs/apk/debug/composeApp-debug.apk composeApp/build/outputs/apk/debug/DrawingThoughts.apk
+
+      # 3. Upload the renamed APK to GitHub Actions Artifacts
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DrawingThoughts-APK
+          path: composeApp/build/outputs/apk/debug/DrawingThoughts.apk
+
+  build-desktop:
+    name: Build Desktop (Linux/Deb)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # Builds the Linux .deb package (since we are running on Ubuntu)
+      - name: Package Desktop App (Linux)
+        run: ./gradlew :composeApp:packageDeb
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DrawingThoughts-Linux-Deb
+          path: composeApp/build/compose/binaries/main/deb/*.deb
