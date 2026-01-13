@@ -23,6 +23,17 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # Fix gradlew permissions
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # Run tests before building
+      - name: Run Android Tests
+        run: ./gradlew :composeApp:testDebugUnitTest
+        continue-on-error: true
 
       # 1. Build the Android APK
       - name: Build Android Debug APK
@@ -56,6 +67,17 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # Fix gradlew permissions
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # Run desktop tests
+      - name: Run Desktop Tests
+        run: ./gradlew :composeApp:jvmTest
+        continue-on-error: true
 
       # Builds the Linux .deb package (since we are running on Ubuntu)
       - name: Package Desktop App (Linux)
@@ -66,3 +88,36 @@ jobs:
         with:
           name: DrawingThoughts-Linux-Deb
           path: composeApp/build/compose/binaries/main/deb/*.deb
+
+  # Optional: Create GitHub Release on tags
+  release:
+    name: Create Release
+    needs: [build-android, build-desktop]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: DrawingThoughts-APK
+          path: ./artifacts/android
+
+      - name: Download Desktop Deb
+        uses: actions/download-artifact@v4
+        with:
+          name: DrawingThoughts-Linux-Deb
+          path: ./artifacts/desktop
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./artifacts/android/DrawingThoughts.apk
+            ./artifacts/desktop/*.deb
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
