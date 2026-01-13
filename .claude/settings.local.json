@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.gradlew.bat tasks --group=build)",
+      "Bash(gradlew.bat tasks:*)",
+      "Bash(./gradlew :composeApp:generateComposeResClass:*)",
+      "Bash(./gradlew clean build:*)",
+      "Bash(adb logcat:*)",
+      "Bash(./gradlew:*)"
+    ]
+  }
+}
