@@ -6,7 +6,8 @@
       "Bash(./gradlew :composeApp:generateComposeResClass:*)",
       "Bash(./gradlew clean build:*)",
       "Bash(adb logcat:*)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(dir \"%USERPROFILE%\\\\AppData\\\\Local\\\\Temp\\\\drawing_thoughts.db*\")"
     ]
   }
 }

@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.unit.dp
@@ -57,10 +58,8 @@ import kotlin.math.max
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.graphicsLayer
 import org.example.project.presentation.whiteboard.state.rememberViewportState
 
@@ -78,8 +77,6 @@ fun WhiteBoardScreen(
     var lastShapeFamily by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
-    val exportGraphicsLayer = rememberGraphicsLayer()
-    val inkGraphicsLayer = rememberGraphicsLayer()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
@@ -330,22 +327,16 @@ fun WhiteBoardScreen(
                         val worldWidth = 5000
                         val worldHeight = 5000
 
-                        // 1. Record Ink Logic (Separate Layer)
-                        inkGraphicsLayer.record(
-                            density = density,
-                            layoutDirection = layoutDirection,
-                            size = androidx.compose.ui.unit.IntSize(worldWidth, worldHeight)
-                        ) {
-                            state.shapes.forEach { shape ->
-                                this.drawDrawnShape(shape)
-                            }
-                        }
+                        // Create ImageBitmap and draw with proper compositing for eraser
+                        val bitmap = androidx.compose.ui.graphics.ImageBitmap(worldWidth, worldHeight)
+                        val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
 
-                        // 2. Composite Background + Ink
-                        exportGraphicsLayer.record(
+                        // Draw using DrawScope for proper blend mode support
+                        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
                             density = density,
                             layoutDirection = layoutDirection,
-                            size = androidx.compose.ui.unit.IntSize(worldWidth, worldHeight)
+                            canvas = canvas,
+                            size = Size(worldWidth.toFloat(), worldHeight.toFloat())
                         ) {
                             // A. Draw Background
                             drawRect(
@@ -353,11 +344,23 @@ fun WhiteBoardScreen(
                                 size = Size(worldWidth.toFloat(), worldHeight.toFloat())
                             )
 
-                            // B. Draw Ink Layer (holes are transparent, revealing background)
-                            drawLayer(inkGraphicsLayer)
+                            // B. Draw Ink Layer with Offscreen Compositing
+                            // This ensures BlendMode.DstOut works correctly for eraser
+                            drawIntoCanvas { canvas ->
+                                canvas.saveLayer(
+                                    androidx.compose.ui.geometry.Rect(0f, 0f, worldWidth.toFloat(), worldHeight.toFloat()),
+                                    androidx.compose.ui.graphics.Paint()
+                                )
+
+                                // Draw all shapes - eraser will use BlendMode.DstOut
+                                state.shapes.forEach { shape ->
+                                    this.drawDrawnShape(shape)
+                                }
+
+                                canvas.restore()
+                            }
                         }
 
-                        val bitmap = exportGraphicsLayer.toImageBitmap()
                         imageSaver.saveImage(bitmap)
 
                         // Update notification to success

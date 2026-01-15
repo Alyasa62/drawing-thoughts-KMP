@@ -37,7 +37,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                 val pointsString = shape.points.joinToString(";") { "${it.x},${it.y}" }
                 ShapeEntity(
                     id = idLong,
-                    type = "FREEHAND",
+                    type = shape.drawingTool.name, // Store actual tool (PEN, ERASER, etc.)
                     color = shape.color.value.toInt(), // Store as Int
                     strokeWidth = shape.strokeWidth,
                     points = pointsString
@@ -61,25 +61,36 @@ class ShapeRepository(private val dao: ShapeDao) {
     private fun mapToDomain(entity: ShapeEntity): DrawnShape {
         val color = Color(entity.color)
         val idString = entity.id.toString()
-        
-        return if (entity.type == "FREEHAND") {
-            val points = entity.points?.split(";")?.mapNotNull { 
+
+        // Parse tool type - will throw exception for legacy "FREEHAND" entries
+        // This forces users to clear old database after update
+        val tool = try {
+            DrawingTool.valueOf(entity.type)
+        } catch (e: IllegalArgumentException) {
+            // Legacy "FREEHAND" type detected - database needs to be cleared
+            // Return a placeholder PEN stroke to avoid crash
+            println("Warning: Legacy database format detected. Please clear the database.")
+            DrawingTool.PEN
+        }
+
+        // Check if it's a freehand tool by looking at points field
+        return if (entity.points != null) {
+            val points = entity.points.split(";").mapNotNull {
                 val parts = it.split(",")
                 if (parts.size == 2) Offset(parts[0].toFloat(), parts[1].toFloat()) else null
-            } ?: emptyList()
-            
+            }
+
             // Re-smooth on load
             val path = PathSmoother.createSmoothedPath(points)
             DrawnShape.FreeHand(
                 id = idString,
                 color = color,
                 strokeWidth = entity.strokeWidth,
-                drawingTool = DrawingTool.PEN, // Default or store tool for freehand if needed, but 'PEN' covers most
+                drawingTool = tool, // Use actual tool from database (PEN, ERASER, HIGHLIGHTER, etc.)
                 path = path,
                 points = points
             )
         } else {
-            val tool = DrawingTool.valueOf(entity.type)
             val start = Offset(entity.startX ?: 0f, entity.startY ?: 0f)
             val end = Offset(entity.endX ?: 0f, entity.endY ?: 0f)
             DrawnShape.Geometric(
