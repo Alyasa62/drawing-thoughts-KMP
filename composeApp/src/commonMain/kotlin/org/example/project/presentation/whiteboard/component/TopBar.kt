@@ -58,7 +58,6 @@ fun TopBar(
             Icon(
                 painter = painterResource(Res.drawable.ic_undo),
                 contentDescription = "Undo",
-//                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(25.dp)
             )
         }
@@ -66,7 +65,6 @@ fun TopBar(
             Icon(
                 painter = painterResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
-//                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(25.dp)
             )
         }
@@ -75,7 +73,6 @@ fun TopBar(
                 Icon(
                     imageVector = Icons.Filled.MoreVert,
                     contentDescription = "More options",
-//                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(25.dp)
                 )
             }

@@ -40,14 +40,13 @@ fun Minimap(
     shapes: List<DrawnShape>,
     viewportZoom: Float,
     viewportPan: Offset,
-    viewportSize: Size, // ACTUAL SCREEN SIZE in pixels (e.g., 1920x1080)
+    viewportSize: Size,
     onJumpTo: (Offset) -> Unit
 ) {
     // FIXED WORLD CONSTANTS (The "Bounded Infinite Canvas")
     val WORLD_WIDTH = 5000f
     val WORLD_HEIGHT = 5000f
 
-    // World Bounds (The "Black Box" - everything is drawn here)
     val worldBounds = Rect(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT)
 
     Box(
@@ -57,11 +56,9 @@ fun Minimap(
     ) {
         Canvas(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
             detectTapGestures { tapOffset ->
-                // Map Tap (Minimap Pixel) -> World Coordinate
                 val mapWidth = size.width.toFloat()
                 val mapHeight = size.height.toFloat()
 
-                // Minimap Scale: How many pixels per world unit
                 val scaleX = mapWidth / WORLD_WIDTH
                 val scaleY = mapHeight / WORLD_HEIGHT
 
@@ -69,9 +66,6 @@ fun Minimap(
                 val worldX = tapOffset.x / scaleX
                 val worldY = tapOffset.y / scaleY
 
-                // Calculate new pan to center the viewport on this world point
-                // Formula: Pan = Screen_Center - (World_Point * Zoom)
-                // This places the world point at the center of the screen
                 val newPanX = (viewportSize.width / 2f) - (worldX * viewportZoom)
                 val newPanY = (viewportSize.height / 2f) - (worldY * viewportZoom)
 
@@ -85,9 +79,6 @@ fun Minimap(
              val scaleX = mapWidth / WORLD_WIDTH
              val scaleY = mapHeight / WORLD_HEIGHT
 
-             // =====================================================================
-             // RENDER SHAPES (Optimized preview)
-             // =====================================================================
              shapes.forEach { shape ->
                  val bounds = org.example.project.utils.GeometryHelper.run { shape.getBounds() }
 
@@ -108,17 +99,6 @@ fun Minimap(
                      style = androidx.compose.ui.graphics.drawscope.Fill
                  )
              }
-
-             // =====================================================================
-             // RENDER VIEWPORT INDICATOR (The "Red Box")
-             // =====================================================================
-             // The viewport shows which part of the world is currently visible on screen.
-             //
-             // Viewport formula (World Coordinates):
-             // - Top-Left: (-Pan / Zoom)
-             // - Bottom-Right: ((ScreenSize - Pan) / Zoom)
-             //
-             // The viewport represents the world area that maps to the screen.
 
              // Calculate viewport bounds in world coordinates
              val vpLeftWorld = -viewportPan.x / viewportZoom

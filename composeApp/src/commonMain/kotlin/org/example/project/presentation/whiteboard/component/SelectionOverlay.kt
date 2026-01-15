@@ -30,7 +30,6 @@ fun DrawScope.drawSelectionOverlay(
             )
         }
         is DrawnShape.FreeHand -> {
-             // For FreeHand, simple bounding box
             var minX = Float.POSITIVE_INFINITY
             var maxX = Float.NEGATIVE_INFINITY
             var minY = Float.POSITIVE_INFINITY
@@ -51,14 +50,10 @@ fun DrawScope.drawSelectionOverlay(
 
     // Draw Logic
     withTransform({
-        // Rotation removed from model
-        // rotate(shape.rotation, pivot = center) 
     }) {
         // 1. Blue Border
         val figmaBlue = Color(0xFF18A0FB)
-        val borderStroke = 1.5.dp.toPx() / zoom // Scale stroke with zoom to keep constant screen thickness? 
-        // Or usually handles stay constant screen size, but border scales? 
-        // User asked for "Blue Bounding Box". Usually border is thin.
+        val borderStroke = 1.5.dp.toPx() / zoom
         
         drawRect(
             color = figmaBlue,

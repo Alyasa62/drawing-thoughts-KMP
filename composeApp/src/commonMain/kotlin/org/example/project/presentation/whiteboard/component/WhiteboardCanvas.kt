@@ -250,7 +250,6 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
         }
     }
 
-    // 4. Selection Overlay (Don't outline erasers or invisible strokes)
     if (isSelected && shape.drawingTool != DrawingTool.ERASER) {
         drawSelectionHighlight(shape)
     }
@@ -270,13 +269,9 @@ private fun DrawScope.drawTriangle(
     val bottom = max(start.y, end.y)
 
     val path = Path().apply {
-        // Top point (center-top)
         moveTo((left + right) / 2f, top)
-        // Bottom-right
         lineTo(right, bottom)
-        // Bottom-left
         lineTo(left, bottom)
-        // Close path
         close()
     }
 
@@ -298,7 +293,6 @@ private fun DrawScope.drawArrow(
     blendMode: BlendMode,
     bothSides: Boolean
 ) {
-    // Calculate arrow head size based on stroke width
     val arrowHeadLength = strokeWidth * 4f
     val arrowHeadWidth = strokeWidth * 2.5f
 
