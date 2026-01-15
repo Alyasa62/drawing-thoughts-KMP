@@ -138,12 +138,15 @@ fun WhiteBoardScreen(
                     )
                 }
                 // 1. TRANSFORM LISTENER (Pinch/Pan)
-                .pointerInput(Unit) {
-                    detectTransformGestures { centroid, gesturePan, gestureZoom, _ ->
-                        // Zoom relative to centroid for natural feel
-                        viewportState.zoomRelativeTo(gestureZoom, centroid)
-                        // Pan is already handled by zoomRelativeTo, but add gesture pan
-                        viewportState.transform(1f, gesturePan)
+                // Only allow viewport transform when not actively drawing
+                .pointerInput(state.currentShape) {
+                    if (state.currentShape == null) {
+                        detectTransformGestures { centroid, gesturePan, gestureZoom, _ ->
+                            // Zoom relative to centroid for natural feel
+                            viewportState.zoomRelativeTo(gestureZoom, centroid)
+                            // Pan is already handled by zoomRelativeTo, but add gesture pan
+                            viewportState.transform(1f, gesturePan)
+                        }
                     }
                 }
                 // 2. DRAW LISTENER

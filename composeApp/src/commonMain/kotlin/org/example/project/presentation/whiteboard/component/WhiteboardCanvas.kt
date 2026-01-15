@@ -58,6 +58,8 @@ fun WhiteboardCanvas(
             .graphicsLayer {
                 // Apply viewport transform on the layer for better performance
                 // NO compositingStrategy here - parent handles it
+                // CRITICAL: Set transform origin to top-left (0,0) for correct coordinate mapping
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
                 scaleX = zoom
                 scaleY = zoom
                 translationX = pan.x
