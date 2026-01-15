@@ -296,10 +296,8 @@ private fun DrawScope.drawArrow(
     val arrowHeadLength = strokeWidth * 4f
     val arrowHeadWidth = strokeWidth * 2.5f
 
-    // Calculate angle of the line
     val angle = atan2(end.y - start.y, end.x - start.x)
 
-    // Shorten the line to end where arrow head starts
     val lineEnd = Offset(
         end.x - arrowHeadLength * 0.7f * cos(angle),
         end.y - arrowHeadLength * 0.7f * sin(angle)
@@ -312,7 +310,6 @@ private fun DrawScope.drawArrow(
         )
     } else start
 
-    // Draw main line (shortened to accommodate arrow heads)
     drawLine(
         color = color,
         start = lineStart,
@@ -323,10 +320,8 @@ private fun DrawScope.drawArrow(
         blendMode = blendMode
     )
 
-    // Draw arrow head at end (at the actual end point)
     drawArrowHead(end, angle, arrowHeadLength, arrowHeadWidth, color, alpha, blendMode)
 
-    // Draw arrow head at start if two-sided (at the actual start point)
     if (bothSides) {
         drawArrowHead(start, angle + Math.PI.toFloat(), arrowHeadLength, arrowHeadWidth, color, alpha, blendMode)
     }
@@ -341,20 +336,17 @@ private fun DrawScope.drawArrowHead(
     alpha: Float,
     blendMode: BlendMode
 ) {
-    // Create a proper arrow head pointing in the direction of the line
-    val arrowAngle = 0.5f // ~30 degrees for each wing
+    val arrowAngle = 0.5f
 
     val path = Path().apply {
         // Arrow tip point
         moveTo(tip.x, tip.y)
 
-        // Left wing - back from tip at angle
         lineTo(
             tip.x - length * cos(angle - arrowAngle),
             tip.y - length * sin(angle - arrowAngle)
         )
 
-        // Right wing - back from tip at angle
         lineTo(
             tip.x - length * cos(angle + arrowAngle),
             tip.y - length * sin(angle + arrowAngle)
@@ -373,7 +365,7 @@ private fun DrawScope.drawArrowHead(
 }
 
 private fun DrawScope.drawSelectionHighlight(shape: DrawnShape) {
-    // Figma-style selection with corner handles
+
     val bounds = shape.getBounds()
     val padding = 10f
     val handleRadius = 6f
@@ -386,19 +378,16 @@ private fun DrawScope.drawSelectionHighlight(shape: DrawnShape) {
     val rectTopLeft = Offset(rectLeft, rectTop)
     val rectSize = Size(rectRight - rectLeft, rectBottom - rectTop)
 
-    // Draw selection rectangle
     drawRect(
-        color = Color(0xFF18A0FB), // Figma blue
+        color = Color(0xFF18A0FB),
         topLeft = rectTopLeft,
         size = rectSize,
         style = Stroke(width = 2f)
     )
 
-    // Draw corner handles (4 small circles)
     val handleColor = Color.White
     val handleStrokeColor = Color(0xFF18A0FB)
 
-    // Top-left handle
     drawCircle(
         color = handleColor,
         radius = handleRadius,
