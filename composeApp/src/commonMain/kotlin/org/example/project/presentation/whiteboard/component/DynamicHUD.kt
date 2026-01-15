@@ -81,7 +81,6 @@ fun DynamicHUD(
                 }
 
                 if (showShapeHud) {
-                    // Shape Gallery
                     val shapeTools = listOf(
                         DrawingTool.RECTANGLE_OUTLINED,
                         DrawingTool.ELLIPSE_OUTLINED,
@@ -109,9 +108,7 @@ fun DynamicHUD(
                             )
                         }
                     }
-                    
-                    // Add Color Dot for shapes too (Use Fill or Stroke Color?)
-                    // Assuming same 'currentColor' applies for now
+
                     Box(
                         modifier = Modifier
                             .size(24.dp)

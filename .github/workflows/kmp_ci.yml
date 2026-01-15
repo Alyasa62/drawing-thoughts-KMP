@@ -36,7 +36,6 @@ jobs:
         run: ./gradlew :composeApp:testDebugUnitTest
         continue-on-error: true
 
-      # 2. Build the Android APK
       - name: Build Android Debug APK
         run: ./gradlew :composeApp:assembleDebug
 
@@ -83,14 +82,12 @@ jobs:
       - name: Package Desktop App (Linux)
         run: ./gradlew :composeApp:packageDeb
 
-      # 3. Upload Linux Artifact (THIS WAS THE BROKEN STEP)
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DrawingThoughts-Linux-Deb
           path: composeApp/build/compose/binaries/main/deb/*.deb
 
-  # RELEASE JOB: Only runs when a tag (v*) is pushed
   release:
     name: Create GitHub Release
     needs: [build-android, build-desktop] # Waits for builds to finish

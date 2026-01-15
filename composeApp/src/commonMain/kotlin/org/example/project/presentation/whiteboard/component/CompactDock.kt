@@ -31,11 +31,10 @@ import org.jetbrains.compose.resources.painterResource
 fun CompactDock(
     modifier: Modifier = Modifier,
     selectedTool: DrawingTool,
-    onToolSelect: (DrawingTool) -> Unit, // Always non-null (pass HAND for view mode)
+    onToolSelect: (DrawingTool) -> Unit,
     onStrokeWidthChange: (Float) -> Unit,
     onShapeClick: () -> Unit = {}
 ) {
-    // Helper to toggle: If clicked == current, select HAND (null equivalent for drawing)
     fun toggleTool(tool: DrawingTool) {
         if (selectedTool == tool) {
             onToolSelect(DrawingTool.HAND)
@@ -113,7 +112,6 @@ private fun DockIcon(
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-    // Colorful Icons: Use Unspecified when not selected to show original SVG colors
     val iconColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.Unspecified
 
     Box(

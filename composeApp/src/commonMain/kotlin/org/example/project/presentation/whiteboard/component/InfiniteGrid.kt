@@ -14,32 +14,17 @@ fun InfiniteGrid(
     zoom: Float,
     pan: Offset,
     dotColor: Color = Color.LightGray.copy(alpha = 0.5f),
-    spacing: Float = 50f // Default spacing in dp (will be scaled)
+    spacing: Float = 50f
 ) {
     Canvas(modifier = modifier.fillMaxSize()) {
         val density = density
         val baseSpacingPx = spacing * density
         val scaledSpacing = baseSpacingPx * zoom
-        
-        // Don't draw if too small (performance/visual noise)
+
         if (scaledSpacing < 10f) return@Canvas
 
         val dotRadius = 2f * density * (if (zoom < 1f) zoom else 1f) // Scale dot slightly but clamp
-        
-        // Calculate visible range
-        // The Viewport acts as a window. The dots are at World(x,y) = (col * spacing, row * spacing)
-        // Screen(x,y) = World(x,y) * zoom + pan
-        // Inverse: World(x,y) = (Screen(x,y) - pan) / zoom
-        
-        // Calculate offset for the grid "window"
-        // We only draw dots that are visible on screen [0, size.width] x [0, size.height]
-        
-        // Optimization: We can just use modulo to draw a static grid that slides?
-        // No, for "Infinite" feel with Zoom, we want the dots to be anchored to World Coordinates.
-        
-        // Find the first visible column/row index
-        // screenX = 0 => worldX = -pan.x / zoom
-        // col = floor(worldX / baseSpacingPx)
+
         
         val startCol = floor((-pan.x / zoom) / baseSpacingPx).toInt()
         val endCol = floor(((size.width - pan.x) / zoom) / baseSpacingPx).toInt() + 1

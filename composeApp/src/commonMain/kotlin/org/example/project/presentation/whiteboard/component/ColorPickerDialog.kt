@@ -20,16 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
-/**
- * Professional Color Picker Dialog
- *
- * Features:
- * - Vast variety of colors organized in categories
- * - Quick access to common colors
- * - Material Design color palette
- * - Custom color section
- * - Clean, fast, and effective UI
- */
+
 @Composable
 fun ColorPickerDialog(
     currentColor: Color,
