@@ -78,12 +78,25 @@ jobs:
         run: ./gradlew :composeApp:jvmTest
         continue-on-error: true
 
-      # 2. Build the Linux .deb package
-      - name: Package Desktop App (Linux)
-        run: ./gradlew :composeApp:packageDeb
+      # 2. Build the Desktop JAR (more reliable than .deb)
+      - name: Build Desktop JAR
+        run: ./gradlew :composeApp:packageUberJarForCurrentOS
 
-      - name: Upload Linux Artifact
+      # Optional: Also try building .deb if available
+      - name: Package Desktop App (Linux .deb)
+        run: ./gradlew :composeApp:packageDeb
+        continue-on-error: true
+
+      - name: Upload Desktop JAR
         uses: actions/upload-artifact@v4
+        with:
+          name: DrawingThoughts-Desktop-JAR
+          path: composeApp/build/compose/jars/*.jar
+
+      - name: Upload Linux Deb (if available)
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        continue-on-error: true
         with:
           name: DrawingThoughts-Linux-Deb
           path: composeApp/build/compose/binaries/main/deb/*.deb
@@ -102,18 +115,26 @@ jobs:
           name: DrawingThoughts-APK
           path: ./artifacts/android
 
-      - name: Download Desktop Artifacts
+      - name: Download Desktop JAR
         uses: actions/download-artifact@v4
         with:
+          name: DrawingThoughts-Desktop-JAR
+          path: ./artifacts/desktop/jar
+
+      - name: Download Desktop Deb (if available)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
           name: DrawingThoughts-Linux-Deb
-          path: ./artifacts/desktop
+          path: ./artifacts/desktop/deb
 
       - name: Publish Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             ./artifacts/android/DrawingThoughts.apk
-            ./artifacts/desktop/*.deb
+            ./artifacts/desktop/jar/*.jar
+            ./artifacts/desktop/deb/*.deb
           draft: false
           prerelease: false
           generate_release_notes: true
