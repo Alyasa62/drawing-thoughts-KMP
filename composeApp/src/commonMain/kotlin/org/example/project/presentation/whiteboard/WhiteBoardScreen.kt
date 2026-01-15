@@ -942,10 +942,10 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                             val height = abs(shape.end.y - shape.start.y) / 2f
 
                             val diamondPath = androidx.compose.ui.graphics.Path().apply {
-                                moveTo(centerX, centerY - height)  // Top
-                                lineTo(centerX + width, centerY)   // Right
-                                lineTo(centerX, centerY + height)  // Bottom
-                                lineTo(centerX - width, centerY)   // Left
+                                moveTo(centerX, centerY - height)
+                                lineTo(centerX + width, centerY)
+                                lineTo(centerX, centerY + height)
+                                lineTo(centerX - width, centerY)
                                 close()
                             }
 

@@ -38,12 +38,19 @@ fun DynamicHUD(
     onShapeSelected: (DrawingTool) -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val showPenHud = state.selectedTool == DrawingTool.PEN || state.selectedTool == DrawingTool.HIGHLIGHTER
-    val showSelectorHud = state.selectedTool == DrawingTool.SELECTOR
+    // Determine which HUD to show based on current tool
+    val showDrawingHud = when (state.selectedTool) {
+        DrawingTool.PEN,
+        DrawingTool.HIGHLIGHTER,
+        DrawingTool.LASER_PEN -> true
+        else -> false
+    }
+    val showEraserHud = state.selectedTool == DrawingTool.ERASER
+    val showSelectorHud = state.selectedTool == DrawingTool.SELECTOR && state.selectedShapeId != null
     val showShapeHud = state.selectedTool.isShape()
 
     AnimatedVisibility(
-        visible = showPenHud || showSelectorHud || showShapeHud,
+        visible = showDrawingHud || showEraserHud || showSelectorHud || showShapeHud,
         enter = fadeIn() + scaleIn() + slideInVertically { it / 2 },
         modifier = modifier
     ) {
@@ -57,8 +64,17 @@ fun DynamicHUD(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (showPenHud) {
-                    // 1. Color Dot
+                // Drawing Tools HUD (PEN, HIGHLIGHTER, LASER_PEN)
+                if (showDrawingHud) {
+                    // Tool icon indicator
+                    Icon(
+                        painter = org.jetbrains.compose.resources.painterResource(state.selectedTool.res),
+                        contentDescription = state.selectedTool.name,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    // Color Dot
                     Box(
                         modifier = Modifier
                             .size(24.dp)
@@ -67,8 +83,8 @@ fun DynamicHUD(
                             .border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant, CircleShape)
                             .clickable { onColorClick() }
                     )
-                    
-                    // 2. Stroke Size Text (Clickable for Slider/Popup)
+
+                    // Stroke Width (Clickable for adjustment)
                     Text(
                         text = "${state.currentStrokeWidth.toInt()}px",
                         style = MaterialTheme.typography.labelMedium,
@@ -80,6 +96,29 @@ fun DynamicHUD(
                     )
                 }
 
+                // Eraser HUD
+                if (showEraserHud) {
+                    // Eraser icon
+                    Icon(
+                        painter = org.jetbrains.compose.resources.painterResource(DrawingTool.ERASER.res),
+                        contentDescription = "Eraser",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    // Eraser size
+                    Text(
+                        text = "${state.currentStrokeWidth.toInt()}px",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onStrokeWidthClick() }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+
+                // Shape Tools HUD
                 if (showShapeHud) {
                     val shapeTools = listOf(
                         DrawingTool.RECTANGLE_OUTLINED,
@@ -89,7 +128,7 @@ fun DynamicHUD(
                         DrawingTool.LINE_PLANE,
                         DrawingTool.ARROW_ONE_SIDED
                     )
-                    
+
                     shapeTools.forEach { tool ->
                         val isSelected = state.selectedTool == tool
                         Box(
@@ -100,7 +139,7 @@ fun DynamicHUD(
                                 .clickable { onShapeSelected(tool) },
                             contentAlignment = Alignment.Center
                         ) {
-                             Icon(
+                            Icon(
                                 painter = org.jetbrains.compose.resources.painterResource(tool.res),
                                 contentDescription = tool.name,
                                 tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -109,6 +148,7 @@ fun DynamicHUD(
                         }
                     }
 
+                    // Color selector for shapes
                     Box(
                         modifier = Modifier
                             .size(24.dp)
@@ -117,18 +157,41 @@ fun DynamicHUD(
                             .border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant, CircleShape)
                             .clickable { onColorClick() }
                     )
+
+                    // Stroke width for outlined shapes (hide for filled shapes)
+                    val isFilled = state.selectedTool.name.contains("FILLED")
+                    if (!isFilled) {
+                        Text(
+                            text = "${state.currentStrokeWidth.toInt()}px",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { onStrokeWidthClick() }
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
+                // Selector HUD (when shape is selected)
                 if (showSelectorHud) {
-                     // Delete Action
-                     Icon(
-                         imageVector = Icons.Default.Delete,
-                         contentDescription = "Delete",
-                         tint = MaterialTheme.colorScheme.error,
-                         modifier = Modifier
+                    // Selected shape info text
+                    Text(
+                        text = "Selected",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+
+                    // Delete Action
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
                             .size(24.dp)
                             .clickable { onDeleteClick() }
-                     )
+                    )
                 }
             }
         }

@@ -170,9 +170,18 @@ class WhiteBoardViewModel : ViewModel() {
             WhiteBoardEvent.OnUndo -> performUndo()
             WhiteBoardEvent.OnRedo -> performRedo()
 
-            // Properties
+            // Properties - Update per-tool settings
             is WhiteBoardEvent.OnStrokeWidthChange -> {
-                _state.update { it.copy(currentStrokeWidth = event.width) }
+                _state.update { current ->
+                    val updatedSettings = current.toolSettings.toMutableMap()
+                    val currentToolSettings = updatedSettings[current.selectedTool]
+                    if (currentToolSettings != null) {
+                        updatedSettings[current.selectedTool] = currentToolSettings.copy(
+                            strokeWidth = event.width
+                        )
+                    }
+                    current.copy(toolSettings = updatedSettings)
+                }
             }
             is WhiteBoardEvent.OnColorChange -> {
                 _state.update { current ->
@@ -180,7 +189,14 @@ class WhiteBoardViewModel : ViewModel() {
                     if (current.selectedTool == DrawingTool.ERASER) {
                         current
                     } else {
-                        current.copy(currentColor = event.color)
+                        val updatedSettings = current.toolSettings.toMutableMap()
+                        val currentToolSettings = updatedSettings[current.selectedTool]
+                        if (currentToolSettings != null) {
+                            updatedSettings[current.selectedTool] = currentToolSettings.copy(
+                                color = event.color
+                            )
+                        }
+                        current.copy(toolSettings = updatedSettings)
                     }
                 }
             }

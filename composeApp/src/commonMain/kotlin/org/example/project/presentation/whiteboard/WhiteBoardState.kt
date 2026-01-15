@@ -17,12 +17,33 @@ data class WhiteBoardState(
     val zoom: Float = 1f,
     val pan: Offset = Offset.Zero,
 
-    val currentStrokeWidth: Float = 10f,
-    val currentColor: Color = Color.Black,
+    // Per-Tool Settings (Each tool remembers its own color and stroke width)
+    val toolSettings: Map<DrawingTool, ToolSettings> = ToolSettingsDefaults.createDefaultSettingsMap(),
+
+    // Canvas Settings
     val canvasBackgroundColor: Color = Color.White,
+
+    // Shape Transform State
     val transientScale: Float = 1f,
     val transientOffset: Offset = Offset.Zero,
     val transientRotation: Float = 0f,
+
+    // Eraser Mode
     val isObjectEraserEnabled: Boolean = false,
+
+    // Drag State
     val isDragging: Boolean = false,
-    val dragStartPosition: Offset? = null)
+    val dragStartPosition: Offset? = null
+) {
+    /**
+     * Get the current tool's color setting
+     */
+    val currentColor: Color
+        get() = toolSettings[selectedTool]?.color ?: Color.Black
+
+    /**
+     * Get the current tool's stroke width setting
+     */
+    val currentStrokeWidth: Float
+        get() = toolSettings[selectedTool]?.strokeWidth ?: 10f
+}
