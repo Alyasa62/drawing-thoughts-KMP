@@ -168,6 +168,9 @@ private fun ShapeControls(state: WhiteBoardState, onEvent: (WhiteBoardEvent) -> 
                  androidx.compose.ui.geometry.Rect(minX, minY, maxX, maxY)
             }
         }
+        is org.example.project.domain.model.DrawnShape.Text -> {
+            org.example.project.utils.GeometryHelper.run { selectedShape.getBounds() }
+        }
     }
 
     InspectorSection(title = "Transform") {

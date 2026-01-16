@@ -172,7 +172,28 @@ fun WhiteBoardScreen(
                         )
                     }
                 }
-                // 3. SELECTOR LISTENER
+                // 3. TEXT TOOL LISTENER (Tap to create text)
+                .pointerInput(state.selectedTool == DrawingTool.TEXT) {
+                    val isTextTool = state.selectedTool == DrawingTool.TEXT
+                    if (isTextTool) {
+                        detectTapGestures(
+                            onTap = { offset ->
+                                val worldPoint = viewportState.screenToWorld(offset)
+                                onEvent(WhiteBoardEvent.OnTextCreate(worldPoint))
+                            },
+                            onDoubleTap = { offset ->
+                                // Check if double-tapping an existing text shape
+                                val worldPoint = viewportState.screenToWorld(offset)
+                                val textShapes = state.shapes.filterIsInstance<DrawnShape.Text>()
+                                val tappedText = org.example.project.utils.HitTestUtil.getShapeAt(textShapes, worldPoint) as? DrawnShape.Text
+                                if (tappedText != null) {
+                                    onEvent(WhiteBoardEvent.OnTextEdit(tappedText.id))
+                                }
+                            }
+                        )
+                    }
+                }
+                // 4. SELECTOR LISTENER
                 .pointerInput(state.selectedTool == DrawingTool.SELECTOR) {
                     val isSelector = state.selectedTool == DrawingTool.SELECTOR
                     if (isSelector) {
@@ -184,7 +205,7 @@ fun WhiteBoardScreen(
                         )
                     }
                 }
-                // 4. SHAPE TRANSFORM LISTENER (Move/Drag with History Transaction)
+                // 5. SHAPE TRANSFORM LISTENER (Move/Drag with History Transaction)
                 .pointerInput(state.selectedTool == DrawingTool.SELECTOR, state.selectedShapeId) {
                     val isSelector = state.selectedTool == DrawingTool.SELECTOR
                     if (isSelector && state.selectedShapeId != null) {
@@ -423,10 +444,24 @@ fun WhiteBoardScreen(
                 onStrokeWidthClick = { showStrokeSlider = true },
                 onShapeSelected = { onEvent(WhiteBoardEvent.OnDrawingToolSelected(it)) },
                 onDeleteClick = { onEvent(WhiteBoardEvent.OnDeleteSelectedShape) },
+                onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
+                onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
+                onFontWeightChange = { onEvent(WhiteBoardEvent.OnTextFontWeightChange(it)) },
+                onFontStyleChange = { onEvent(WhiteBoardEvent.OnTextFontStyleChange(it)) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 90.dp)
             )
+
+            // --- Text Input Dialog ---
+            if (state.isTextEditing) {
+                org.example.project.presentation.whiteboard.component.TextInputDialog(
+                    currentText = state.currentTextContent,
+                    onTextChange = { onEvent(WhiteBoardEvent.OnTextChange(it)) },
+                    onConfirm = { onEvent(WhiteBoardEvent.OnTextCommit) },
+                    onDismiss = { onEvent(WhiteBoardEvent.OnTextCancel) }
+                )
+            }
 
             // --- POPUPS (Slider) ---
             if (showStrokeSlider) {
@@ -960,6 +995,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
 
                         else -> {}
                     }
+                }
+                is DrawnShape.Text -> {
+                    // Text is rendered using drawText with textMeasurer - handled in WhiteboardCanvas
                 }
             }
         }

@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "90691903a252c10adbbaeef94d2b7a71",
+    "identityHash": "b8da2130acb5e160ea7c681dc0312355",
     "entities": [
       {
         "tableName": "ShapeEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `color` INTEGER NOT NULL, `strokeWidth` REAL NOT NULL, `rotation` REAL NOT NULL, `startX` REAL, `startY` REAL, `endX` REAL, `endY` REAL, `points` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `color` INTEGER NOT NULL, `strokeWidth` REAL NOT NULL, `startX` REAL, `startY` REAL, `endX` REAL, `endY` REAL, `points` TEXT, `text` TEXT, `textX` REAL, `textY` REAL, `fontSize` REAL, `fontFamily` TEXT, `fontWeight` INTEGER, `fontStyle` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -29,12 +29,6 @@
           {
             "fieldPath": "strokeWidth",
             "columnName": "strokeWidth",
-            "affinity": "REAL",
-            "notNull": true
-          },
-          {
-            "fieldPath": "rotation",
-            "columnName": "rotation",
             "affinity": "REAL",
             "notNull": true
           },
@@ -62,6 +56,41 @@
             "fieldPath": "points",
             "columnName": "points",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "textX",
+            "columnName": "textX",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "textY",
+            "columnName": "textY",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fontSize",
+            "columnName": "fontSize",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fontFamily",
+            "columnName": "fontFamily",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fontWeight",
+            "columnName": "fontWeight",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fontStyle",
+            "columnName": "fontStyle",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -74,7 +103,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '90691903a252c10adbbaeef94d2b7a71')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b8da2130acb5e160ea7c681dc0312355')"
     ]
   }
 }

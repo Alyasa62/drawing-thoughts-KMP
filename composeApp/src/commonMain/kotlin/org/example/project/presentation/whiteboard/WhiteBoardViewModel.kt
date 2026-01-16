@@ -76,6 +76,7 @@ class WhiteBoardViewModel : ViewModel() {
                                  w > 5f || h > 5f
                              }
                              is DrawnShape.FreeHand -> shape.points.size > 2
+                             is DrawnShape.Text -> shape.text.isNotBlank()
                         }
                         !isEraser && !isInvisibleColor && isValidSize
                     }
@@ -240,11 +241,155 @@ class WhiteBoardViewModel : ViewModel() {
             }
             WhiteBoardEvent.OnDeleteSelectedShape -> deleteSelectedShape()
             is WhiteBoardEvent.OnViewportChange -> {
-                _state.update { 
+                _state.update {
                     it.copy(
                         zoom = event.zoom,
                         pan = event.pan
                     )
+                }
+            }
+
+            // Text Tool Events
+            is WhiteBoardEvent.OnTextCreate -> {
+                addToHistory(_state.value.shapes)
+                _state.update { current ->
+                    current.copy(
+                        isTextEditing = true,
+                        currentTextContent = "",
+                        currentShape = DrawnShape.Text(
+                            id = "text_${System.currentTimeMillis()}",
+                            color = current.currentColor,
+                            strokeWidth = 0f,
+                            drawingTool = DrawingTool.TEXT,
+                            position = event.position,
+                            text = "",
+                            fontSize = current.textFontSize,
+                            fontFamily = current.textFontFamily,
+                            fontWeight = current.textFontWeight,
+                            fontStyle = current.textFontStyle
+                        )
+                    )
+                }
+            }
+            is WhiteBoardEvent.OnTextEdit -> {
+                val textShape = _state.value.shapes.find { it.id == event.textId } as? DrawnShape.Text
+                if (textShape != null) {
+                    addToHistory(_state.value.shapes)
+                    _state.update { current ->
+                        current.copy(
+                            isTextEditing = true,
+                            editingTextId = event.textId,
+                            currentTextContent = textShape.text,
+                            textFontSize = textShape.fontSize,
+                            textFontFamily = textShape.fontFamily,
+                            textFontWeight = textShape.fontWeight,
+                            textFontStyle = textShape.fontStyle
+                        )
+                    }
+                }
+            }
+            is WhiteBoardEvent.OnTextChange -> {
+                _state.update { current ->
+                    val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(
+                        text = event.text
+                    )
+                    current.copy(
+                        currentTextContent = event.text,
+                        currentShape = updatedShape
+                    )
+                }
+            }
+            is WhiteBoardEvent.OnTextFontSizeChange -> {
+                _state.update { current ->
+                    val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(
+                        fontSize = event.fontSize
+                    )
+                    current.copy(
+                        textFontSize = event.fontSize,
+                        currentShape = updatedShape
+                    )
+                }
+            }
+            is WhiteBoardEvent.OnTextFontFamilyChange -> {
+                _state.update { current ->
+                    val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(
+                        fontFamily = event.fontFamily
+                    )
+                    current.copy(
+                        textFontFamily = event.fontFamily,
+                        currentShape = updatedShape
+                    )
+                }
+            }
+            is WhiteBoardEvent.OnTextFontWeightChange -> {
+                _state.update { current ->
+                    val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(
+                        fontWeight = event.fontWeight
+                    )
+                    current.copy(
+                        textFontWeight = event.fontWeight,
+                        currentShape = updatedShape
+                    )
+                }
+            }
+            is WhiteBoardEvent.OnTextFontStyleChange -> {
+                _state.update { current ->
+                    val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(
+                        fontStyle = event.fontStyle
+                    )
+                    current.copy(
+                        textFontStyle = event.fontStyle,
+                        currentShape = updatedShape
+                    )
+                }
+            }
+            WhiteBoardEvent.OnTextCommit -> {
+                val currentShape = _state.value.currentShape as? DrawnShape.Text
+                val editingId = _state.value.editingTextId
+
+                if (currentShape != null && currentShape.text.isNotBlank()) {
+                    _state.update { current ->
+                        val updatedShapes = if (editingId != null) {
+                            // Editing existing text
+                            current.shapes.map { shape ->
+                                if (shape.id == editingId) currentShape else shape
+                            }
+                        } else {
+                            // Creating new text
+                            current.shapes + currentShape
+                        }
+                        current.copy(
+                            shapes = updatedShapes,
+                            isTextEditing = false,
+                            editingTextId = null,
+                            currentTextContent = "",
+                            currentShape = null
+                        )
+                    }
+                } else {
+                    // Empty text, just cancel
+                    _state.update { current ->
+                        current.copy(
+                            isTextEditing = false,
+                            editingTextId = null,
+                            currentTextContent = "",
+                            currentShape = null
+                        )
+                    }
+                }
+            }
+            WhiteBoardEvent.OnTextCancel -> {
+                _state.update { current ->
+                    current.copy(
+                        isTextEditing = false,
+                        editingTextId = null,
+                        currentTextContent = "",
+                        currentShape = null
+                    )
+                }
+                // Undo to remove the uncommitted text
+                if (undoStack.isNotEmpty()) {
+                    performUndo()
                 }
             }
         }
@@ -293,11 +438,16 @@ class WhiteBoardViewModel : ViewModel() {
                     }
                     is DrawnShape.FreeHand -> {
                         // Move all points
-                        val newPoints = shape.points.map { 
-                            it.copy(x = it.x + deltaX, y = it.y + deltaY) 
+                        val newPoints = shape.points.map {
+                            it.copy(x = it.x + deltaX, y = it.y + deltaY)
                         }
                          val newPath = PathSmoother.createSmoothedPath(newPoints)
                          shape.copy(points = newPoints, path = newPath)
+                    }
+                    is DrawnShape.Text -> {
+                        shape.copy(
+                            position = shape.position.copy(x = shape.position.x + deltaX, y = shape.position.y + deltaY)
+                        )
                     }
                 }
             } else {
@@ -438,6 +588,15 @@ class WhiteBoardViewModel : ViewModel() {
                         val newPath = PathSmoother.createSmoothedPath(newPoints)
                         shape.copy(points = newPoints, path = newPath)
                     }
+                    is DrawnShape.Text -> {
+                        // Scale font size and move position
+                        val newCenterX = shape.position.x + offset.x
+                        val newCenterY = shape.position.y + offset.y
+                        shape.copy(
+                            position = Offset(newCenterX, newCenterY),
+                            fontSize = shape.fontSize * scale
+                        )
+                    }
                 }
             } else {
                 shape
@@ -533,6 +692,7 @@ class WhiteBoardViewModel : ViewModel() {
                         current.copy(start = newStart, end = newEnd)
                     }
                     is DrawnShape.FreeHand -> current // No resizing for Freehand yet
+                    is DrawnShape.Text -> current // No resizing for Text yet
                 }
             } else {
                 current

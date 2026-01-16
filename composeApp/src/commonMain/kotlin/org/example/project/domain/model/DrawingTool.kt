@@ -21,6 +21,7 @@ import drawingthoughts.composeapp.generated.resources.ic_hexagon
 import drawingthoughts.composeapp.generated.resources.img_eraser
 import drawingthoughts.composeapp.generated.resources.img_highlighter
 import drawingthoughts.composeapp.generated.resources.ic_selector_cursor
+import drawingthoughts.composeapp.generated.resources.ic_text
 import drawingthoughts.composeapp.generated.resources.img_laser_pen
 import drawingthoughts.composeapp.generated.resources.img_pen
 import org.jetbrains.compose.resources.DrawableResource
@@ -33,6 +34,7 @@ enum class DrawingTool(
     ERASER(Res.drawable.img_eraser),
     HIGHLIGHTER(Res.drawable.img_highlighter),
     LASER_PEN(Res.drawable.img_laser_pen),
+    TEXT(Res.drawable.ic_text),
     LINE_PLANE(Res.drawable.ic_line_plain),
     LINE_DOTTED(Res.drawable.ic_line_dotted),
     ARROW_ONE_SIDED(Res.drawable.ic_arrow_one_sided),

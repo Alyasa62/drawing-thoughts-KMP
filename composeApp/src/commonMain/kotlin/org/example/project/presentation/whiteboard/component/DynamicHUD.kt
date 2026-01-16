@@ -36,7 +36,11 @@ fun DynamicHUD(
     onColorClick: () -> Unit,
     onStrokeWidthClick: () -> Unit,
     onShapeSelected: (DrawingTool) -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onFontSizeChange: (Float) -> Unit = {},
+    onFontFamilyChange: (androidx.compose.ui.text.font.FontFamily) -> Unit = {},
+    onFontWeightChange: (androidx.compose.ui.text.font.FontWeight) -> Unit = {},
+    onFontStyleChange: (androidx.compose.ui.text.font.FontStyle) -> Unit = {}
 ) {
     // Determine which HUD to show based on current tool
     val showDrawingHud = when (state.selectedTool) {
@@ -48,6 +52,21 @@ fun DynamicHUD(
     val showEraserHud = state.selectedTool == DrawingTool.ERASER
     val showSelectorHud = state.selectedTool == DrawingTool.SELECTOR && state.selectedShapeId != null
     val showShapeHud = state.selectedTool.isShape()
+    val showTextHud = state.selectedTool == DrawingTool.TEXT
+
+    // Text Tool HUD - Shown separately with its own styling
+    if (showTextHud) {
+        TextToolHUD(
+            state = state,
+            visible = showTextHud,
+            modifier = modifier,
+            onColorClick = onColorClick,
+            onFontSizeChange = onFontSizeChange,
+            onFontFamilyChange = onFontFamilyChange,
+            onFontWeightChange = onFontWeightChange,
+            onFontStyleChange = onFontStyleChange
+        )
+    }
 
     AnimatedVisibility(
         visible = showDrawingHud || showEraserHud || showSelectorHud || showShapeHud,

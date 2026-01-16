@@ -130,14 +130,27 @@ object GeometryHelper {
                 var minY = Float.POSITIVE_INFINITY
                 var maxY = Float.NEGATIVE_INFINITY
                 if (this.points.isEmpty()) return androidx.compose.ui.geometry.Rect.Zero
-                
-                this.points.forEach { 
+
+                this.points.forEach {
                     minX = kotlin.math.min(minX, it.x)
                     maxX = kotlin.math.max(maxX, it.x)
                     minY = kotlin.math.min(minY, it.y)
                     maxY = kotlin.math.max(maxY, it.y)
                 }
                 androidx.compose.ui.geometry.Rect(minX, minY, maxX, maxY)
+            }
+            is org.example.project.domain.model.DrawnShape.Text -> {
+                // Approximate text bounds based on font size
+                // Width: estimate 0.6 * fontSize per character
+                // Height: fontSize
+                val estimatedWidth = this.text.length * this.fontSize * 0.6f
+                val estimatedHeight = this.fontSize * 1.2f // Add some padding
+                androidx.compose.ui.geometry.Rect(
+                    left = this.position.x,
+                    top = this.position.y,
+                    right = this.position.x + estimatedWidth,
+                    bottom = this.position.y + estimatedHeight
+                )
             }
         }
     }

@@ -26,7 +26,14 @@ object HitTestUtil {
         return when (shape) {
             is DrawnShape.Geometric -> isPointInGeometric(shape, point)
             is DrawnShape.FreeHand -> isPointInFreeHand(shape, point)
+            is DrawnShape.Text -> isPointInText(shape, point)
         }
+    }
+
+    private fun isPointInText(shape: DrawnShape.Text, point: Offset): Boolean {
+        // Use the estimated bounds from GeometryHelper
+        val bounds = GeometryHelper.run { shape.getBounds() }
+        return bounds.contains(point)
     }
 
     private fun isPointInGeometric(shape: DrawnShape.Geometric, point: Offset): Boolean {

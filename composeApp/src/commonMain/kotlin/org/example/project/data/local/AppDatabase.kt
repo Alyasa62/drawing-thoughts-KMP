@@ -7,7 +7,7 @@ import androidx.room.RoomDatabaseConstructor
 import org.example.project.data.local.dao.ShapeDao
 import org.example.project.data.local.entity.ShapeEntity
 
-@Database(entities = [ShapeEntity::class], version = 1)
+@Database(entities = [ShapeEntity::class], version = 2)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun shapeDao(): ShapeDao

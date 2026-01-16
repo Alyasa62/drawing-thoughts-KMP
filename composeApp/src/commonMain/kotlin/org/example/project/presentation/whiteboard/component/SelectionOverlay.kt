@@ -15,7 +15,7 @@ fun DrawScope.drawSelectionOverlay(
     shape: DrawnShape,
     zoom: Float
 ) {
-    if (shape !is DrawnShape.Geometric && shape !is DrawnShape.FreeHand) return
+    if (shape !is DrawnShape.Geometric && shape !is DrawnShape.FreeHand && shape !is DrawnShape.Text) return
 
     // Calculate Bounds & Center
     val bounds = when (shape) {
@@ -34,13 +34,16 @@ fun DrawScope.drawSelectionOverlay(
             var maxX = Float.NEGATIVE_INFINITY
             var minY = Float.POSITIVE_INFINITY
             var maxY = Float.NEGATIVE_INFINITY
-            shape.points.forEach { 
+            shape.points.forEach {
                 minX = min(minX, it.x)
                 maxX = kotlin.math.max(maxX, it.x)
                 minY = min(minY, it.y)
                 maxY = kotlin.math.max(maxY, it.y)
             }
              androidx.compose.ui.geometry.Rect(minX, minY, maxX, maxY)
+        }
+        is DrawnShape.Text -> {
+            org.example.project.utils.GeometryHelper.run { shape.getBounds() }
         }
     }
     

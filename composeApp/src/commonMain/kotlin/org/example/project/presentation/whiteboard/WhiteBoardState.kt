@@ -2,6 +2,9 @@ package org.example.project.presentation.whiteboard
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import org.example.project.domain.model.DrawingTool
 import org.example.project.domain.model.DrawnShape
 
@@ -33,7 +36,16 @@ data class WhiteBoardState(
 
     // Drag State
     val isDragging: Boolean = false,
-    val dragStartPosition: Offset? = null
+    val dragStartPosition: Offset? = null,
+
+    // Text Tool State
+    val isTextEditing: Boolean = false,
+    val editingTextId: String? = null,
+    val currentTextContent: String = "",
+    val textFontSize: Float = 24f,
+    val textFontFamily: FontFamily = FontFamily.Default,
+    val textFontWeight: FontWeight = FontWeight.Normal,
+    val textFontStyle: FontStyle = FontStyle.Normal
 ) {
     /**
      * Get the current tool's color setting

@@ -15,5 +15,13 @@ data class ShapeEntity(
     val endX: Float? = null,
     val endY: Float? = null,
     // FreeHand
-    val points: String? = null // Format: "x,y;x,y"
+    val points: String? = null, // Format: "x,y;x,y"
+    // Text
+    val text: String? = null,
+    val textX: Float? = null,
+    val textY: Float? = null,
+    val fontSize: Float? = null,
+    val fontFamily: String? = null, // Serialized font family name
+    val fontWeight: Int? = null, // FontWeight.weight value
+    val fontStyle: Int? = null // 0 = Normal, 1 = Italic
 )

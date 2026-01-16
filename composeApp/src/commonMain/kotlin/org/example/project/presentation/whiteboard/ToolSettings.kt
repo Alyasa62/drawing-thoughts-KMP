@@ -40,6 +40,11 @@ object ToolSettingsDefaults {
                 strokeWidth = 3f
             )
 
+            DrawingTool.TEXT -> ToolSettings(
+                color = Color.Black,
+                strokeWidth = 24f // Used as font size
+            )
+
             // Geometric shapes - filled variants
             DrawingTool.CIRCLE_FILLED,
             DrawingTool.RECTANGLE_FILLED,

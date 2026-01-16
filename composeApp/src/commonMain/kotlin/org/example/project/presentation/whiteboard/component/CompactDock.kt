@@ -91,8 +91,15 @@ fun CompactDock(
                 isSelected = selectedTool == DrawingTool.ERASER,
                 onClick = { toggleTool(DrawingTool.ERASER) }
             )
-            
-            // 5. SHAPES - clicking toggles the variants menu
+
+            // 5. TEXT
+            DockIcon(
+                tool = DrawingTool.TEXT,
+                isSelected = selectedTool == DrawingTool.TEXT,
+                onClick = { toggleTool(DrawingTool.TEXT) }
+            )
+
+            // 6. SHAPES - clicking toggles the variants menu
              DockIcon(
                 tool = DrawingTool.RECTANGLE_OUTLINED,
                 isSelected = selectedTool.isShape(),

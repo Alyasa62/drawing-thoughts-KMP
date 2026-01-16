@@ -3,6 +3,7 @@ package org.example.project.presentation.whiteboard.component
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -15,8 +16,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.sp
 import org.example.project.domain.model.DrawingTool
 import org.example.project.domain.model.DrawnShape
 import org.example.project.presentation.whiteboard.state.ViewportState
@@ -51,6 +57,7 @@ fun WhiteboardCanvas(
 ) {
     val zoom = viewportState.zoom
     val pan = viewportState.pan
+    val textMeasurer = rememberTextMeasurer()
 
     Canvas(
         modifier = modifier
@@ -71,7 +78,11 @@ fun WhiteboardCanvas(
             // If dragging, render the selected shape with shadow effect (reduced opacity)
             val isSelected = shape.id == selectionShapeId
             val shapeAlpha = if (isDragging && isSelected) 0.5f else 1f
-            drawSingleShape(shape, isSelected, shapeAlpha)
+            if (shape is DrawnShape.Text) {
+                drawTextShape(shape, isSelected, shapeAlpha, textMeasurer)
+            } else {
+                drawSingleShape(shape, isSelected, shapeAlpha)
+            }
         }
 
         // Draw trace line from original position to current position while dragging
@@ -111,7 +122,11 @@ fun WhiteboardCanvas(
 
         // Draw Active Shape (Currently being drawn)
         currentShape?.let {
-            drawSingleShape(it, false, 1f)
+            if (it is DrawnShape.Text) {
+                drawTextShape(it, false, 1f, textMeasurer)
+            } else {
+                drawSingleShape(it, false, 1f)
+            }
         }
     }
 }
@@ -179,6 +194,9 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
                 style = style,
                 blendMode = blendMode
             )
+        }
+        is DrawnShape.Text -> {
+            // Text shapes are not drawn here - they're handled separately by drawTextShape
         }
         is DrawnShape.Geometric -> {
             // Calculate Bounds
@@ -529,4 +547,38 @@ private fun DrawScope.drawDiamond(
     }
 
     drawPath(path, color, alpha, style, blendMode = blendMode)
+}
+
+private fun DrawScope.drawTextShape(
+    shape: DrawnShape.Text,
+    isSelected: Boolean,
+    baseAlpha: Float,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer
+) {
+    val textLayoutResult = textMeasurer.measure(
+        text = shape.text,
+        style = TextStyle(
+            color = shape.color.copy(alpha = baseAlpha),
+            fontSize = shape.fontSize.sp,
+            fontFamily = shape.fontFamily,
+            fontWeight = shape.fontWeight,
+            fontStyle = shape.fontStyle
+        )
+    )
+
+    drawText(
+        textLayoutResult = textLayoutResult,
+        topLeft = shape.position
+    )
+
+    if (isSelected) {
+        // Draw selection highlight around text
+        val textSize = Size(textLayoutResult.size.width.toFloat(), textLayoutResult.size.height.toFloat())
+        drawRect(
+            color = Color(0xFF18A0FB).copy(alpha = 0.3f),
+            topLeft = shape.position - Offset(4f, 4f),
+            size = Size(textSize.width + 8f, textSize.height + 8f),
+            style = Stroke(width = 2f)
+        )
+    }
 }
