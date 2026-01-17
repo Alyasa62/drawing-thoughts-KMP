@@ -56,57 +56,24 @@ fun TextToolHUD(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // First row: Color and Font Size
+                // First row: Color and Font Size (using shared components)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Color Dot
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(state.currentColor)
-                            .border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant, CircleShape)
-                            .clickable { onColorClick() }
+                    ColorDot(
+                        color = state.currentColor,
+                        onClick = onColorClick,
+                        size = 24
                     )
 
-                    // Font Size Selector
-                    Text(
-                        text = "Size:",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    FontSizeRow(
+                        selectedSize = state.textFontSize,
+                        onSizeChange = onFontSizeChange
                     )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.horizontalScroll(rememberScrollState())
-                    ) {
-                        listOf(12f, 16f, 20f, 24f, 32f, 40f, 48f, 64f).forEach { size ->
-                            val isSelected = state.textFontSize == size
-                            Text(
-                                text = size.toInt().toString(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(
-                                        if (isSelected)
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                        else
-                                            androidx.compose.ui.graphics.Color.Transparent
-                                    )
-                                    .clickable { onFontSizeChange(size) }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
                 }
 
-                // Second row: Font Styles (scrollable)
+                // Second row: Font Styles (using shared components + weight/style)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically

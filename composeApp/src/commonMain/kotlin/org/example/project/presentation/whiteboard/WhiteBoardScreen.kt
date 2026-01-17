@@ -429,10 +429,23 @@ fun WhiteBoardScreen(
             }
 
             if (showColorPicker) {
+                // Get the appropriate current color based on editing mode
+                val currentColor = if (state.isTextEditing) {
+                    (state.currentShape as? org.example.project.domain.model.DrawnShape.Text)?.color
+                        ?: state.currentColor
+                } else {
+                    state.currentColor
+                }
+
                 org.example.project.presentation.whiteboard.component.ColorPickerDialog(
-                    currentColor = state.currentColor,
+                    currentColor = currentColor,
                     onColorSelected = { color ->
-                        onEvent(WhiteBoardEvent.OnColorChange(color))
+                        // Use OnTextColorChange when editing text, otherwise OnColorChange
+                        if (state.isTextEditing) {
+                            onEvent(WhiteBoardEvent.OnTextColorChange(color))
+                        } else {
+                            onEvent(WhiteBoardEvent.OnColorChange(color))
+                        }
                         showColorPicker = false
                     },
                     onDismiss = { showColorPicker = false }
@@ -455,13 +468,40 @@ fun WhiteBoardScreen(
                     .padding(bottom = 90.dp)
             )
 
-            // --- Text Input Dialog ---
+            // --- Text Editing Layer (Full-screen immersive editing) ---
             if (state.isTextEditing) {
-                org.example.project.presentation.whiteboard.component.TextInputDialog(
-                    currentText = state.currentTextContent,
+                // Get color from currentShape if it exists (for synchronized state)
+                val textColor = (state.currentShape as? org.example.project.domain.model.DrawnShape.Text)?.color
+                    ?: state.currentColor
+
+                org.example.project.presentation.whiteboard.component.TextEditingLayer(
+                    text = state.currentTextContent,
+                    fontSize = state.textFontSize,
+                    fontFamily = state.textFontFamily,
+                    fontWeight = state.textFontWeight,
+                    fontStyle = state.textFontStyle,
+                    color = textColor,
                     onTextChange = { onEvent(WhiteBoardEvent.OnTextChange(it)) },
-                    onConfirm = { onEvent(WhiteBoardEvent.OnTextCommit) },
-                    onDismiss = { onEvent(WhiteBoardEvent.OnTextCancel) }
+                    onDismiss = {
+                        if (state.currentTextContent.isNotBlank()) {
+                            onEvent(WhiteBoardEvent.OnTextCommit)
+                        } else {
+                            onEvent(WhiteBoardEvent.OnTextCancel)
+                        }
+                    },
+                    modifier = Modifier.zIndex(20f)
+                )
+
+                // Keyboard-attached toolbar (appears above keyboard)
+                org.example.project.presentation.whiteboard.component.KeyboardAttachedToolbar(
+                    state = state,
+                    visible = state.isTextEditing,
+                    onColorClick = { showColorPicker = true },
+                    onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
+                    onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .zIndex(21f)
                 )
             }
 

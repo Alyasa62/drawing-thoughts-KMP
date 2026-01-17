@@ -299,6 +299,25 @@ class WhiteBoardViewModel : ViewModel() {
                     )
                 }
             }
+            is WhiteBoardEvent.OnTextColorChange -> {
+                _state.update { current ->
+                    val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(
+                        color = event.color
+                    )
+                    // Also update tool settings so the color persists
+                    val updatedSettings = current.toolSettings.toMutableMap()
+                    val currentToolSettings = updatedSettings[DrawingTool.TEXT]
+                    if (currentToolSettings != null) {
+                        updatedSettings[DrawingTool.TEXT] = currentToolSettings.copy(
+                            color = event.color
+                        )
+                    }
+                    current.copy(
+                        currentShape = updatedShape,
+                        toolSettings = updatedSettings
+                    )
+                }
+            }
             is WhiteBoardEvent.OnTextFontSizeChange -> {
                 _state.update { current ->
                     val updatedShape = (current.currentShape as? DrawnShape.Text)?.copy(

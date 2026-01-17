@@ -37,6 +37,7 @@ sealed interface WhiteBoardEvent {
     data class OnTextCreate(val position: Offset): WhiteBoardEvent
     data class OnTextEdit(val textId: String): WhiteBoardEvent
     data class OnTextChange(val text: String): WhiteBoardEvent
+    data class OnTextColorChange(val color: Color): WhiteBoardEvent
     data class OnTextFontSizeChange(val fontSize: Float): WhiteBoardEvent
     data class OnTextFontFamilyChange(val fontFamily: FontFamily): WhiteBoardEvent
     data class OnTextFontWeightChange(val fontWeight: FontWeight): WhiteBoardEvent
