@@ -62,6 +62,10 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import org.example.project.presentation.whiteboard.state.rememberViewportState
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun WhiteBoardScreen(
@@ -80,6 +84,7 @@ fun WhiteBoardScreen(
     val density = androidx.compose.ui.platform.LocalDensity.current
     val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    val textMeasurer = rememberTextMeasurer()
 
     // 1. FAST LOCAL STATE (The "Liquid" Layer)
     val viewportState = rememberViewportState(state.zoom, state.pan)
@@ -358,6 +363,7 @@ fun WhiteBoardScreen(
                         val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
 
                         // Draw using DrawScope for proper blend mode support
+                        // Note: textMeasurer is captured from Composable scope above
                         androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
                             density = density,
                             layoutDirection = layoutDirection,
@@ -380,7 +386,7 @@ fun WhiteBoardScreen(
 
                                 // Draw all shapes - eraser will use BlendMode.DstOut
                                 state.shapes.forEach { shape ->
-                                    this.drawDrawnShape(shape)
+                                    this.drawDrawnShape(shape, textMeasurer)
                                 }
 
                                 canvas.restore()
@@ -696,7 +702,8 @@ fun ColorPickerDialog(
 // Note: OnScreen drawing is now handled by WhiteboardCanvas.kt!
 // This is strictly for the ImageSaver export logic.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
-    shape: DrawnShape
+    shape: DrawnShape,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer
 ) {
         // 1. Resolve Properties
         var actualColor = shape.color
@@ -1050,7 +1057,22 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                     }
                 }
                 is DrawnShape.Text -> {
-                    // Text is rendered using drawText with textMeasurer - handled in WhiteboardCanvas
+                    // Render text using TextMeasurer for proper layout
+                    val textLayoutResult = textMeasurer.measure(
+                        text = shape.text,
+                        style = androidx.compose.ui.text.TextStyle(
+                            color = shape.color,
+                            fontSize = shape.fontSize.sp,
+                            fontFamily = shape.fontFamily,
+                            fontWeight = shape.fontWeight,
+                            fontStyle = shape.fontStyle
+                        )
+                    )
+
+                    drawText(
+                        textLayoutResult = textLayoutResult,
+                        topLeft = shape.position
+                    )
                 }
             }
         }

@@ -9,7 +9,11 @@
       "Bash(./gradlew:*)",
       "Bash(dir \"%USERPROFILE%\\\\AppData\\\\Local\\\\Temp\\\\drawing_thoughts.db*\")",
       "Bash(gradlew.bat :composeApp:run:*)",
-      "Bash(./gradlew.bat:*)"
+      "Bash(./gradlew.bat:*)",
+      "Bash(cmd /c \"gradlew.bat :composeApp:compileKotlinJvm 2>&1\")",
+      "Bash(cmd /c \"gradlew.bat :composeApp:build 2>&1 | findstr /C:BUILD /C:error /C:ERROR /C:Exception\")",
+      "Bash(cmd /c \"gradlew.bat :composeApp:compileKotlinJvm --console=plain 2>&1 | tail -50\")",
+      "Bash(cmd /c \"echo Building project... && gradlew.bat clean :composeApp:compileKotlinJvm --no-daemon --stacktrace\")"
     ]
   }
 }
