@@ -38,7 +38,15 @@ fun TextInputDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            // Industry-standard UX: Tapping outside commits changes (Figma/Canva behavior)
+            // Only commit if text is not blank
+            if (textValue.isNotBlank()) {
+                onConfirm()
+            } else {
+                onDismiss()
+            }
+        },
         title = {
             Text(
                 text = "Enter Text",

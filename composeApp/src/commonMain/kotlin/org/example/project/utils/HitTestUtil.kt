@@ -2,6 +2,9 @@ package org.example.project.utils
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import org.example.project.domain.model.DrawnShape
 import kotlin.math.abs
 import kotlin.math.max
@@ -33,6 +36,51 @@ object HitTestUtil {
     private fun isPointInText(shape: DrawnShape.Text, point: Offset): Boolean {
         // Use the estimated bounds from GeometryHelper
         val bounds = GeometryHelper.run { shape.getBounds() }
+        return bounds.contains(point)
+    }
+
+    /**
+     * Get accurate text bounds using TextMeasurer.
+     * Use this method in Composable context for precise hit testing.
+     */
+    fun getTextBounds(shape: DrawnShape.Text, textMeasurer: TextMeasurer): Rect {
+        if (shape.text.isEmpty()) {
+            // Empty text - return a small clickable area
+            return Rect(
+                left = shape.position.x,
+                top = shape.position.y,
+                right = shape.position.x + shape.fontSize * 2f,
+                bottom = shape.position.y + shape.fontSize * 1.5f
+            )
+        }
+
+        val textStyle = TextStyle(
+            fontSize = shape.fontSize.sp,
+            fontFamily = shape.fontFamily,
+            fontWeight = shape.fontWeight,
+            fontStyle = shape.fontStyle,
+            color = shape.color
+        )
+
+        val textLayoutResult = textMeasurer.measure(
+            text = shape.text,
+            style = textStyle
+        )
+
+        return Rect(
+            left = shape.position.x,
+            top = shape.position.y,
+            right = shape.position.x + textLayoutResult.size.width,
+            bottom = shape.position.y + textLayoutResult.size.height
+        )
+    }
+
+    /**
+     * Check if a point is inside a text shape using accurate text measurement.
+     * Use this method in Composable context for precise hit testing.
+     */
+    fun isPointInTextAccurate(shape: DrawnShape.Text, point: Offset, textMeasurer: TextMeasurer): Boolean {
+        val bounds = getTextBounds(shape, textMeasurer)
         return bounds.contains(point)
     }
 

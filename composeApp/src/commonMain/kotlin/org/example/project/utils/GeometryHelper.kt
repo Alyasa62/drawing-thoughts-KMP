@@ -140,17 +140,34 @@ object GeometryHelper {
                 androidx.compose.ui.geometry.Rect(minX, minY, maxX, maxY)
             }
             is org.example.project.domain.model.DrawnShape.Text -> {
-                // Approximate text bounds based on font size
-                // Width: estimate 0.6 * fontSize per character
-                // Height: fontSize
-                val estimatedWidth = this.text.length * this.fontSize * 0.6f
-                val estimatedHeight = this.fontSize * 1.2f // Add some padding
-                androidx.compose.ui.geometry.Rect(
-                    left = this.position.x,
-                    top = this.position.y,
-                    right = this.position.x + estimatedWidth,
-                    bottom = this.position.y + estimatedHeight
-                )
+                // Use actual text measurement for accurate bounds
+                // This requires TextMeasurer which is only available in Composable context
+                // For now, we provide a reasonable estimate that's better than character counting
+                // The actual precise measurement should be done in the UI layer
+
+                if (this.text.isEmpty()) {
+                    // Empty text - return a small clickable area
+                    androidx.compose.ui.geometry.Rect(
+                        left = this.position.x,
+                        top = this.position.y,
+                        right = this.position.x + this.fontSize * 2f, // Minimum clickable width
+                        bottom = this.position.y + this.fontSize * 1.5f
+                    )
+                } else {
+                    // Improved estimate using average character width
+                    // Most fonts have average char width ≈ 0.5-0.6 * fontSize
+                    val avgCharWidth = this.fontSize * 0.55f
+                    val estimatedWidth = this.text.length * avgCharWidth
+                    // Line height is typically 1.2-1.5 * fontSize
+                    val lineHeight = this.fontSize * 1.5f
+
+                    androidx.compose.ui.geometry.Rect(
+                        left = this.position.x,
+                        top = this.position.y,
+                        right = this.position.x + estimatedWidth,
+                        bottom = this.position.y + lineHeight
+                    )
+                }
             }
         }
     }

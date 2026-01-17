@@ -172,26 +172,28 @@ fun WhiteBoardScreen(
                         )
                     }
                 }
-                // 3. TEXT TOOL LISTENER (Tap to create text)
-                .pointerInput(state.selectedTool == DrawingTool.TEXT) {
+                // 3. TEXT TOOL LISTENER (Tap to create text + Universal double-tap to edit)
+                .pointerInput(state.selectedTool) {
                     val isTextTool = state.selectedTool == DrawingTool.TEXT
-                    if (isTextTool) {
-                        detectTapGestures(
-                            onTap = { offset ->
+                    detectTapGestures(
+                        onTap = { offset ->
+                            // Only create new text when TEXT tool is active
+                            if (isTextTool) {
                                 val worldPoint = viewportState.screenToWorld(offset)
                                 onEvent(WhiteBoardEvent.OnTextCreate(worldPoint))
-                            },
-                            onDoubleTap = { offset ->
-                                // Check if double-tapping an existing text shape
-                                val worldPoint = viewportState.screenToWorld(offset)
-                                val textShapes = state.shapes.filterIsInstance<DrawnShape.Text>()
-                                val tappedText = org.example.project.utils.HitTestUtil.getShapeAt(textShapes, worldPoint) as? DrawnShape.Text
-                                if (tappedText != null) {
-                                    onEvent(WhiteBoardEvent.OnTextEdit(tappedText.id))
-                                }
                             }
-                        )
-                    }
+                        },
+                        onDoubleTap = { offset ->
+                            // UNIVERSAL: Double-tap to edit text works with ANY tool
+                            // This provides industry-standard UX (Figma/Canva behavior)
+                            val worldPoint = viewportState.screenToWorld(offset)
+                            val textShapes = state.shapes.filterIsInstance<DrawnShape.Text>()
+                            val tappedText = org.example.project.utils.HitTestUtil.getShapeAt(textShapes, worldPoint) as? DrawnShape.Text
+                            if (tappedText != null) {
+                                onEvent(WhiteBoardEvent.OnTextEdit(tappedText.id))
+                            }
+                        }
+                    )
                 }
                 // 4. SELECTOR LISTENER
                 .pointerInput(state.selectedTool == DrawingTool.SELECTOR) {
