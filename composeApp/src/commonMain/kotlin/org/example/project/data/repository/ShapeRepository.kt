@@ -29,10 +29,6 @@ class ShapeRepository(private val dao: ShapeDao) {
     }
 
     private fun mapToEntity(shape: DrawnShape): ShapeEntity {
-        // Attempt to parse existing ID to Long, otherwise 0 (let Room auto-generate new one if 0, but that breaks updates)
-        // Better: We should probably store the Long ID in the Domain object if we want smooth updates. 
-        // Or store a String UserID in DB. 
-        // For now, let's assume valid Long IDs or 0.
         val idLong = shape.id.toLongOrNull() ?: 0L 
         
         return when (shape) {

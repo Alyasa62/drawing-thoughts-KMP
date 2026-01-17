@@ -493,12 +493,15 @@ fun WhiteBoardScreen(
                 )
 
                 // Keyboard-attached toolbar (appears above keyboard)
+                // Uses UNIFIED bar - exact same UI as TextToolHUD
                 org.example.project.presentation.whiteboard.component.KeyboardAttachedToolbar(
                     state = state,
                     visible = state.isTextEditing,
                     onColorClick = { showColorPicker = true },
                     onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
                     onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
+                    onFontWeightChange = { onEvent(WhiteBoardEvent.OnTextFontWeightChange(it)) },
+                    onFontStyleChange = { onEvent(WhiteBoardEvent.OnTextFontStyleChange(it)) },
                     onDoneClick = {
                         // Save and commit the text
                         if (state.currentTextContent.isNotBlank()) {
