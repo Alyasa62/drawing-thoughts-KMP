@@ -280,6 +280,7 @@ class WhiteBoardViewModel : ViewModel() {
                             isTextEditing = true,
                             editingTextId = event.textId,
                             currentTextContent = textShape.text,
+                            currentShape = textShape, // FIX: Set currentShape so updates work
                             textFontSize = textShape.fontSize,
                             textFontFamily = textShape.fontFamily,
                             textFontWeight = textShape.fontWeight,

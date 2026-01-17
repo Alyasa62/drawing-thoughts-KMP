@@ -12,7 +12,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -33,7 +39,8 @@ fun KeyboardAttachedToolbar(
     modifier: Modifier = Modifier,
     onColorClick: () -> Unit,
     onFontSizeChange: (Float) -> Unit,
-    onFontFamilyChange: (FontFamily) -> Unit
+    onFontFamilyChange: (FontFamily) -> Unit,
+    onDoneClick: () -> Unit
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -54,7 +61,7 @@ fun KeyboardAttachedToolbar(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Row 1: Color + Font Size (using shared components)
+                // Row 1: Color + Font Size + Done Button (using shared components)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -74,6 +81,21 @@ fun KeyboardAttachedToolbar(
                         onSizeChange = onFontSizeChange,
                         modifier = Modifier.weight(1f)
                     )
+
+                    // Done button (Checkmark)
+                    FilledIconButton(
+                        onClick = onDoneClick,
+                        modifier = Modifier.size(40.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Done",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
 
                 // Row 2: Font Family (using shared components)

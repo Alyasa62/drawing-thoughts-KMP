@@ -499,6 +499,14 @@ fun WhiteBoardScreen(
                     onColorClick = { showColorPicker = true },
                     onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
                     onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
+                    onDoneClick = {
+                        // Save and commit the text
+                        if (state.currentTextContent.isNotBlank()) {
+                            onEvent(WhiteBoardEvent.OnTextCommit)
+                        } else {
+                            onEvent(WhiteBoardEvent.OnTextCancel)
+                        }
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .zIndex(21f)
