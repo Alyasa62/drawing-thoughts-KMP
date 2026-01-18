@@ -36,8 +36,8 @@ class ShapeRepository(private val dao: ShapeDao) {
                 val pointsString = shape.points.joinToString(";") { "${it.x},${it.y}" }
                 ShapeEntity(
                     id = idLong,
-                    type = shape.drawingTool.name, // Store actual tool (PEN, ERASER, etc.)
-                    color = shape.color.value.toInt(), // Store as Int
+                    type = shape.drawingTool.name,
+                    color = shape.color.value.toInt(),
                     strokeWidth = shape.strokeWidth,
                     points = pointsString
                 )

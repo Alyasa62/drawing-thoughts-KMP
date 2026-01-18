@@ -880,8 +880,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                                 blendMode = actualBlendMode
                             )
 
-                            // End arrow head
-                            val arrowAngle = 0.5f // ~30 degrees
+                            val arrowAngle = 0.5f
                             val endArrowPath = androidx.compose.ui.graphics.Path().apply {
                                 moveTo(shape.end.x, shape.end.y)
                                 lineTo(
@@ -1057,7 +1056,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                     }
                 }
                 is DrawnShape.Text -> {
-                    // Render text using TextMeasurer for proper layout
                     val textLayoutResult = textMeasurer.measure(
                         text = shape.text,
                         style = androidx.compose.ui.text.TextStyle(

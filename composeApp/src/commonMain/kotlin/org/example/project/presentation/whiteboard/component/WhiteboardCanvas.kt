@@ -142,13 +142,8 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
 
     when (shape.drawingTool) {
         DrawingTool.ERASER -> {
-            // TRUE TRANSPARENCY ERASER
-            // DstOut = "Destination Out" Porter-Duff mode
-            // Formula: [Da * (1 - Sa), Dc * (1 - Sa)]
-            // Effect: Uses source alpha as a "mask" to subtract from destination alpha.
-            // Since we're in an offscreen layer, this creates transparent holes in the ink,
-            // revealing the layers beneath (grid + white paper), NOT the window background.
-            color = Color.Black // Opaque mask (alpha = 1.0)
+
+            color = Color.Black
             blendMode = BlendMode.DstOut
             strokeWidth *= 1.5f
         }
