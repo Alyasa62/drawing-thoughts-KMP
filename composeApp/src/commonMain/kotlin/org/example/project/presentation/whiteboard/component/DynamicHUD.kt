@@ -192,9 +192,8 @@ fun DynamicHUD(
                     }
                 }
 
-                // Selector HUD (when shape is selected)
+
                 if (showSelectorHud) {
-                    // Selected shape info text
                     Text(
                         text = "Selected",
                         style = MaterialTheme.typography.labelSmall,

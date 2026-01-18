@@ -48,7 +48,6 @@ fun ColorPickerDialog(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Tabs
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = Color.Transparent,
@@ -71,7 +70,6 @@ fun ColorPickerDialog(
                     )
                 }
 
-                // Color Grid
                 Box(
                     modifier = Modifier
                         .weight(1f)
