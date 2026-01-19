@@ -77,8 +77,6 @@ fun CompactDock(
                     }
                 )
             }
-
-            // 3. HIGHLIGHTER
              DockIcon(
                 tool = DrawingTool.HIGHLIGHTER,
                 isSelected = selectedTool == DrawingTool.HIGHLIGHTER,
@@ -98,8 +96,6 @@ fun CompactDock(
                 isSelected = selectedTool == DrawingTool.TEXT,
                 onClick = { toggleTool(DrawingTool.TEXT) }
             )
-
-            // 6. SHAPES - clicking toggles the variants menu
              DockIcon(
                 tool = DrawingTool.RECTANGLE_OUTLINED,
                 isSelected = selectedTool.isShape(),

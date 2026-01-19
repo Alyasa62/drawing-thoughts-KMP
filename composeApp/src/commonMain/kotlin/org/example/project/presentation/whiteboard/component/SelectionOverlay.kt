@@ -66,10 +66,7 @@ fun DrawScope.drawSelectionOverlay(
         )
 
         // 2. Handles
-        val handleSize = 8.dp.toPx() / zoom // Keep handle size constant on screen? No, simpler to scale.
-        // Actually for "Excalidraw" style, usually handles map to screen pixels (constant visual size).
-        // But here we are drawing in World Coordinates.
-        // So we must divide size by Zoom.
+        val handleSize = 8.dp.toPx() / zoom
         val handleRadius = 4.dp.toPx() / zoom 
         
         val corners = listOf(
