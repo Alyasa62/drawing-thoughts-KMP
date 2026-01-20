@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -30,31 +31,53 @@ class WhiteBoardViewModel : ViewModel() {
 
     // Transaction Snapshot for Undo/Redo (Transformations)
     private var transactionSnapshot: List<DrawnShape>? = null
-    
+
+    // Auto-save debounce job
+    private var autoSaveJob: Job? = null
+
     // Repository Integration
     private val repository: org.example.project.data.repository.ShapeRepository by lazy {
         val db = org.example.project.data.local.getDatabaseBuilder().build()
         org.example.project.data.repository.ShapeRepository(db.shapeDao())
     }
 
+    private val folderRepository: org.example.project.data.repository.FolderRepository by lazy {
+        val db = org.example.project.data.local.getDatabaseBuilder().build()
+        org.example.project.data.repository.FolderRepository(db.folderDao())
+    }
+
     init {
-        // Load initial state
+        // Load initial state - "All Drawings" (shapes without folder)
         viewModelScope.launch {
             try {
-                val loadedShapes = repository.getShapes()
+                val loadedShapes = repository.getShapesByFolder(null)
                 _state.update { it.copy(shapes = loadedShapes) }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
-        
-        // Auto-save logic (Debounce)
+
+        // Collect folders from database
         viewModelScope.launch {
-            state.collect { currentState ->
-                 kotlinx.coroutines.delay(2000) // Debounce 2 seconds
-                 if (currentState.shapes.isNotEmpty()) {
-                     repository.saveShapes(currentState.shapes)
-                 }
+            folderRepository.getAllFolders().collect { folders ->
+                _state.update { it.copy(folders = folders) }
+            }
+        }
+
+        // Auto-save logic with proper debouncing
+        viewModelScope.launch {
+            state.collect { _ ->
+                // Cancel any pending save
+                autoSaveJob?.cancel()
+
+                // Start a new save job with delay
+                autoSaveJob = viewModelScope.launch {
+                    kotlinx.coroutines.delay(2000) // Wait 2 seconds
+                    // Save the LATEST state's shapes (read at save time, not collect time)
+                    val latestState = state.value
+                    println("ViewModel: Auto-saving ${latestState.shapes.size} shapes for folder ${latestState.selectedFolderId}")
+                    repository.saveShapesForFolder(latestState.shapes, latestState.selectedFolderId)
+                }
             }
         }
     }
@@ -289,6 +312,7 @@ class WhiteBoardViewModel : ViewModel() {
                             color = current.currentColor,
                             strokeWidth = 0f,
                             drawingTool = DrawingTool.TEXT,
+                            folderId = current.selectedFolderId,
                             position = event.position,
                             text = "",
                             fontSize = current.textFontSize,
@@ -440,6 +464,23 @@ class WhiteBoardViewModel : ViewModel() {
                     performUndo()
                 }
             }
+
+            // Folder System Events
+            is WhiteBoardEvent.OnFolderSelect -> {
+                handleFolderSelect(event.folderId)
+            }
+            WhiteBoardEvent.OnCreateFolderRequest -> {
+                _state.update { it.copy(showCreateFolderDialog = true) }
+            }
+            is WhiteBoardEvent.OnCreateFolderConfirm -> {
+                handleCreateFolder(event.name, event.color)
+            }
+            WhiteBoardEvent.OnCreateFolderCancel -> {
+                _state.update { it.copy(showCreateFolderDialog = false) }
+            }
+            is WhiteBoardEvent.OnDeleteFolder -> {
+                handleDeleteFolder(event.folder)
+            }
         }
     }
 
@@ -544,7 +585,8 @@ class WhiteBoardViewModel : ViewModel() {
             state.value.currentColor
         }
         val strokeWidth = state.value.currentStrokeWidth
-        val tempId = "temp_${kotlin.random.Random.nextInt()}" 
+        val folderId = state.value.selectedFolderId
+        val tempId = "temp_${kotlin.random.Random.nextInt()}"
 
         val newShape: DrawnShape = if (isFreeHandTool(tool)) {
             currentFreeHandPoints.add(currentOffset)
@@ -557,11 +599,11 @@ class WhiteBoardViewModel : ViewModel() {
                     }
                 }
             }
-            DrawnShape.FreeHand(tempId, color, strokeWidth, tool, path, currentFreeHandPoints.toList())
+            DrawnShape.FreeHand(tempId, color, strokeWidth, tool, folderId, path, currentFreeHandPoints.toList())
         } else {
             // Geometric shapes
             val fixedStart = if (startOffset == Offset.Unspecified) currentOffset else startOffset
-            DrawnShape.Geometric(tempId, color, strokeWidth, tool, fixedStart, currentOffset)
+            DrawnShape.Geometric(tempId, color, strokeWidth, tool, folderId, fixedStart, currentOffset)
         }
 
         _state.update { it.copy(currentShape = newShape) }
@@ -770,5 +812,69 @@ class WhiteBoardViewModel : ViewModel() {
         }
         
         _state.update { it.copy(shapes = updatedShapes) }
+    }
+
+    // Folder System Handlers
+    private fun handleFolderSelect(folderId: String?) {
+        viewModelScope.launch {
+            try {
+                // Auto-save current shapes to their folder before switching (even if empty)
+                val currentFolderId = _state.value.selectedFolderId
+                repository.saveShapesForFolder(_state.value.shapes, currentFolderId)
+
+                // Load shapes for the selected folder
+                val loadedShapes = repository.getShapesByFolder(folderId)
+
+                _state.update {
+                    it.copy(
+                        selectedFolderId = folderId,
+                        shapes = loadedShapes,
+                        selectedShapeId = null,
+                        currentShape = null
+                    )
+                }
+
+                // Clear undo/redo stacks when switching folders
+                undoStack.clear()
+                redoStack.clear()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun handleCreateFolder(name: String, color: Color) {
+        viewModelScope.launch {
+            try {
+                val newFolder = org.example.project.domain.model.Folder(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = name,
+                    color = color
+                )
+                folderRepository.insertFolder(newFolder)
+                _state.update { it.copy(showCreateFolderDialog = false) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun handleDeleteFolder(folder: org.example.project.domain.model.Folder) {
+        viewModelScope.launch {
+            try {
+                // Delete all shapes in this folder
+                repository.deleteShapesByFolder(folder.id)
+
+                // Delete the folder itself
+                folderRepository.deleteFolder(folder)
+
+                // If the deleted folder was selected, switch to "All Drawings"
+                if (_state.value.selectedFolderId == folder.id) {
+                    handleFolderSelect(null)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

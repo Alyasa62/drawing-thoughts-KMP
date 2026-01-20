@@ -15,7 +15,10 @@
       "Bash(cmd /c \"gradlew.bat :composeApp:compileKotlinJvm --console=plain 2>&1 | tail -50\")",
       "Bash(cmd /c \"echo Building project... && gradlew.bat clean :composeApp:compileKotlinJvm --no-daemon --stacktrace\")",
       "Bash(timeout /t 30)",
-      "Bash(.gradlew.bat :composeApp:build)"
+      "Bash(.gradlew.bat :composeApp:build)",
+      "Bash(gradlew.bat :composeApp:build:*)",
+      "Bash(cmd /c gradlew.bat :composeApp:build)",
+      "Bash(timeout 180 ./gradlew.bat:*)"
     ]
   }
 }

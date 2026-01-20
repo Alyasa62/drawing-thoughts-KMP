@@ -16,10 +16,31 @@ class ShapeRepository(private val dao: ShapeDao) {
 
     suspend fun saveShapes(shapes: List<DrawnShape>) {
         dao.deleteAllShapes()
-        val entities = shapes.map { shape -> 
-            mapToEntity(shape) 
+        val entities = shapes.map { shape ->
+            mapToEntity(shape)
         }
         dao.insertShapes(entities)
+    }
+
+    suspend fun saveShapesForFolder(shapes: List<DrawnShape>, folderId: String?) {
+        println("ShapeRepository: Saving ${shapes.size} shapes for folder: $folderId")
+        shapes.forEachIndexed { index, shape ->
+            println("  Shape $index: ${shape::class.simpleName}, color=${shape.color}, folderId=${shape.folderId}")
+        }
+
+        // Delete only shapes from the current folder
+        if (folderId == null) {
+            dao.deleteShapesWithoutFolder()
+        } else {
+            dao.deleteShapesByFolder(folderId)
+        }
+
+        // Insert the new shapes for this folder
+        val entities = shapes.map { shape ->
+            mapToEntity(shape)
+        }
+        dao.insertShapes(entities)
+        println("ShapeRepository: Saved ${entities.size} entities")
     }
 
     suspend fun getShapes(): List<DrawnShape> {
@@ -28,26 +49,48 @@ class ShapeRepository(private val dao: ShapeDao) {
         }
     }
 
+    suspend fun getShapesByFolder(folderId: String?): List<DrawnShape> {
+        val entities = if (folderId == null) {
+            dao.getShapesWithoutFolder()
+        } else {
+            dao.getShapesByFolder(folderId)
+        }
+        println("ShapeRepository: Loading ${entities.size} entities for folder: $folderId")
+        val shapes = entities.map { entity -> mapToDomain(entity) }
+        shapes.forEachIndexed { index, shape ->
+            println("  Loaded Shape $index: ${shape::class.simpleName}, color=${shape.color}, folderId=${shape.folderId}")
+        }
+        return shapes
+    }
+
+    suspend fun deleteShapesByFolder(folderId: String) {
+        dao.deleteShapesByFolder(folderId)
+    }
+
     private fun mapToEntity(shape: DrawnShape): ShapeEntity {
         val idLong = shape.id.toLongOrNull() ?: 0L 
         
         return when (shape) {
             is DrawnShape.FreeHand -> {
                 val pointsString = shape.points.joinToString(";") { "${it.x},${it.y}" }
+                val colorInt = (shape.color.value and 0xFFFFFFFFuL).toInt()
                 ShapeEntity(
                     id = idLong,
                     type = shape.drawingTool.name,
-                    color = shape.color.value.toInt(),
+                    color = colorInt,
                     strokeWidth = shape.strokeWidth,
+                    folderId = shape.folderId,
                     points = pointsString
                 )
             }
             is DrawnShape.Geometric -> {
+                val colorInt = (shape.color.value and 0xFFFFFFFFuL).toInt()
                 ShapeEntity(
                     id = idLong,
                     type = shape.drawingTool.name,
-                    color = shape.color.value.toInt(),
+                    color = colorInt,
                     strokeWidth = shape.strokeWidth,
+                    folderId = shape.folderId,
                     startX = shape.start.x,
                     startY = shape.start.y,
                     endX = shape.end.x,
@@ -55,11 +98,13 @@ class ShapeRepository(private val dao: ShapeDao) {
                 )
             }
             is DrawnShape.Text -> {
+                val colorInt = (shape.color.value and 0xFFFFFFFFuL).toInt()
                 ShapeEntity(
                     id = idLong,
                     type = shape.drawingTool.name,
-                    color = shape.color.value.toInt(),
+                    color = colorInt,
                     strokeWidth = shape.strokeWidth,
+                    folderId = shape.folderId,
                     text = shape.text,
                     textX = shape.position.x,
                     textY = shape.position.y,
@@ -103,6 +148,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     color = color,
                     strokeWidth = entity.strokeWidth,
                     drawingTool = tool, // Use actual tool from database (PEN, ERASER, HIGHLIGHTER, etc.)
+                    folderId = entity.folderId,
                     path = path,
                     points = points
                 )
@@ -114,6 +160,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     color = color,
                     strokeWidth = entity.strokeWidth,
                     drawingTool = tool,
+                    folderId = entity.folderId,
                     position = Offset(entity.textX ?: 0f, entity.textY ?: 0f),
                     text = entity.text,
                     fontSize = entity.fontSize ?: 24f,
@@ -131,6 +178,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     color = color,
                     strokeWidth = entity.strokeWidth,
                     drawingTool = tool,
+                    folderId = entity.folderId,
                     start = start,
                     end = end
                 )

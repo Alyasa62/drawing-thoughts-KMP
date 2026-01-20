@@ -55,4 +55,11 @@ sealed interface WhiteBoardEvent {
     data class OnTextFontStyleChange(val fontStyle: FontStyle): WhiteBoardEvent
     data object OnTextCommit: WhiteBoardEvent
     data object OnTextCancel: WhiteBoardEvent
+
+    // Folder System Events
+    data class OnFolderSelect(val folderId: String?): WhiteBoardEvent
+    data object OnCreateFolderRequest: WhiteBoardEvent
+    data class OnCreateFolderConfirm(val name: String, val color: Color): WhiteBoardEvent
+    data object OnCreateFolderCancel: WhiteBoardEvent
+    data class OnDeleteFolder(val folder: org.example.project.domain.model.Folder): WhiteBoardEvent
 }

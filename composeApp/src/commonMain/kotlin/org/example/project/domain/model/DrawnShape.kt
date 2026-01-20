@@ -12,12 +12,14 @@ sealed class DrawnShape {
     abstract val color: Color
     abstract val strokeWidth: Float
     abstract val drawingTool: DrawingTool
+    abstract val folderId: String? // null means "All Drawings"
 
     data class FreeHand(
         override val id: String,
         override val color: Color,
         override val strokeWidth: Float,
         override val drawingTool: DrawingTool,
+        override val folderId: String? = null,
         val path: Path,
         val points: List<Offset> // Added for serialization
     ) : DrawnShape()
@@ -27,6 +29,7 @@ sealed class DrawnShape {
         override val color: Color,
         override val strokeWidth: Float,
         override val drawingTool: DrawingTool,
+        override val folderId: String? = null,
         val start: Offset,
         val end: Offset
     ) : DrawnShape()
@@ -36,6 +39,7 @@ sealed class DrawnShape {
         override val color: Color,
         override val strokeWidth: Float, // Not used for text, but required by sealed class
         override val drawingTool: DrawingTool,
+        override val folderId: String? = null,
         val position: Offset,
         val text: String,
         val fontSize: Float = 24f,

@@ -30,10 +30,12 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
 
 @Composable
 fun TopBar(
     modifier: Modifier = Modifier,
+    onMenuIconClick: () -> Unit = {},
     onHomeIconClick: () -> Unit,
     onUndoIconClick: () -> Unit,
     onRedoIconClick: () -> Unit,
@@ -47,6 +49,13 @@ fun TopBar(
     }
 
     Row(modifier = modifier) {
+        FilledIconButton(onClick = { onMenuIconClick() }) {
+            Icon(
+                imageVector = Icons.Filled.Menu,
+                contentDescription = "Menu",
+                modifier = Modifier.size(25.dp)
+            )
+        }
         FilledIconButton(onClick = { onResetViewClick() }) {
             Icon(
                 imageVector = Icons.Filled.Home,

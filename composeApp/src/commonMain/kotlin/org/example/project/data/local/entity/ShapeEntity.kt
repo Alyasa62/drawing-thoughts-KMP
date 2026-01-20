@@ -9,6 +9,7 @@ data class ShapeEntity(
     val type: String,
     val color: Int,
     val strokeWidth: Float,
+    val folderId: String? = null, // References Folder.id, null means "All Drawings"
     // Geometric
     val startX: Float? = null,
     val startY: Float? = null,

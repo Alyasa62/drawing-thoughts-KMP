@@ -23,10 +23,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -85,6 +88,7 @@ fun WhiteBoardScreen(
     val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val textMeasurer = rememberTextMeasurer()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     // 1. FAST LOCAL STATE (The "Liquid" Layer)
     val viewportState = rememberViewportState(state.zoom, state.pan)
@@ -126,12 +130,29 @@ fun WhiteBoardScreen(
     // 3. Ink Layer (Offscreen) - all drawing strokes with transparency support
     // ============================================================================
 
-    // LAYER A: WHITE PAPER (Bottom)
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(state.canvasBackgroundColor)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            org.example.project.presentation.whiteboard.component.FolderDrawerContent(
+                folders = state.folders,
+                selectedFolderId = state.selectedFolderId,
+                onFolderClick = { folder ->
+                    val folderId = if (folder.id == "default") null else folder.id
+                    onEvent(WhiteBoardEvent.OnFolderSelect(folderId))
+                    scope.launch { drawerState.close() }
+                },
+                onCreateFolderClick = {
+                    onEvent(WhiteBoardEvent.OnCreateFolderRequest)
+                }
+            )
+        }
     ) {
+        // LAYER A: WHITE PAPER (Bottom)
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(state.canvasBackgroundColor)
+        ) {
         // LAYER B: INFINITE CANVAS CONTAINER (Input & Grid)
         Box(
             modifier = Modifier
@@ -333,6 +354,9 @@ fun WhiteBoardScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(20.dp),
+                onMenuIconClick = {
+                    scope.launch { drawerState.open() }
+                },
                 onHomeIconClick = { },
                 onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
                 onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
@@ -422,6 +446,15 @@ fun WhiteBoardScreen(
                         onEvent(WhiteBoardEvent.OnExportVisibleScreen)
                     },
                     onDismiss = { onEvent(WhiteBoardEvent.OnExportDialogDismiss) }
+                )
+            }
+
+            if (state.showCreateFolderDialog) {
+                org.example.project.presentation.whiteboard.component.CreateFolderDialog(
+                    onConfirm = { name, color ->
+                        onEvent(WhiteBoardEvent.OnCreateFolderConfirm(name, color))
+                    },
+                    onDismiss = { onEvent(WhiteBoardEvent.OnCreateFolderCancel) }
                 )
             }
 
@@ -620,6 +653,7 @@ fun WhiteBoardScreen(
                     .padding(bottom = 120.dp)
             )
         }
+    }
     }
 }
 

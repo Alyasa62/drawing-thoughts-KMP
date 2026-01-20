@@ -51,7 +51,12 @@ data class WhiteBoardState(
     val showClearConfirmDialog: Boolean = false,
 
     // Export Dialog State
-    val showExportDialog: Boolean = false
+    val showExportDialog: Boolean = false,
+
+    // Folder System State
+    val folders: List<org.example.project.domain.model.Folder> = emptyList(),
+    val selectedFolderId: String? = null, // null means "All Drawings"
+    val showCreateFolderDialog: Boolean = false
 ) {
     /**
      * Get the current tool's color setting
