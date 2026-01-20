@@ -111,6 +111,29 @@ object GeometryHelper {
         return TransformHandle.NONE
     }
 
+    /**
+     * Calculate the overall bounding box that contains all shapes
+     * Returns null if the shape list is empty
+     */
+    fun calculateOverallBounds(shapes: List<org.example.project.domain.model.DrawnShape>): androidx.compose.ui.geometry.Rect? {
+        if (shapes.isEmpty()) return null
+
+        var minX = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
+
+        shapes.forEach { shape ->
+            val bounds = shape.getBounds()
+            minX = kotlin.math.min(minX, bounds.left)
+            maxX = kotlin.math.max(maxX, bounds.right)
+            minY = kotlin.math.min(minY, bounds.top)
+            maxY = kotlin.math.max(maxY, bounds.bottom)
+        }
+
+        return androidx.compose.ui.geometry.Rect(minX, minY, maxX, maxY)
+    }
+
     // Extension method to get bounds from a shape
     fun org.example.project.domain.model.DrawnShape.getBounds(): androidx.compose.ui.geometry.Rect {
         return when (this) {

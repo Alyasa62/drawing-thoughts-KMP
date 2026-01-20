@@ -347,62 +347,8 @@ fun WhiteBoardScreen(
                     )
                 },
                 onExportClick = {
-                    scope.launch {
-                        // Show notification immediately
-                        val snackbarJob = launch {
-                            snackbarHostState.showSnackbar(
-                                message = "✓ Saving image...",
-                                duration = androidx.compose.material3.SnackbarDuration.Short
-                            )
-                        }
-
-                        val worldWidth = 5000
-                        val worldHeight = 5000
-
-                        // Create ImageBitmap and draw with proper compositing for eraser
-                        val bitmap = androidx.compose.ui.graphics.ImageBitmap(worldWidth, worldHeight)
-                        val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
-
-                        // Draw using DrawScope for proper blend mode support
-                        // Note: textMeasurer is captured from Composable scope above
-                        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
-                            density = density,
-                            layoutDirection = layoutDirection,
-                            canvas = canvas,
-                            size = Size(worldWidth.toFloat(), worldHeight.toFloat())
-                        ) {
-                            // A. Draw Background
-                            drawRect(
-                                color = state.canvasBackgroundColor,
-                                size = Size(worldWidth.toFloat(), worldHeight.toFloat())
-                            )
-
-                            // B. Draw Ink Layer with Offscreen Compositing
-                            // This ensures BlendMode.DstOut works correctly for eraser
-                            drawIntoCanvas { canvas ->
-                                canvas.saveLayer(
-                                    androidx.compose.ui.geometry.Rect(0f, 0f, worldWidth.toFloat(), worldHeight.toFloat()),
-                                    androidx.compose.ui.graphics.Paint()
-                                )
-
-                                // Draw all shapes - eraser will use BlendMode.DstOut
-                                state.shapes.forEach { shape ->
-                                    this.drawDrawnShape(shape, textMeasurer)
-                                }
-
-                                canvas.restore()
-                            }
-                        }
-
-                        imageSaver.saveImage(bitmap)
-
-                        // Update notification to success
-                        snackbarJob.cancel()
-                        snackbarHostState.showSnackbar(
-                            message = "✓ Image saved to gallery",
-                            duration = androidx.compose.material3.SnackbarDuration.Short
-                        )
-                    }
+                    // Show export dialog instead of exporting immediately
+                    onEvent(WhiteBoardEvent.OnExportRequest)
                 }
             )
 
@@ -439,6 +385,43 @@ fun WhiteBoardScreen(
                 org.example.project.presentation.whiteboard.component.ClearCanvasConfirmDialog(
                     onConfirm = { onEvent(WhiteBoardEvent.OnClearCanvasConfirm) },
                     onDismiss = { onEvent(WhiteBoardEvent.OnClearCanvasCancel) }
+                )
+            }
+
+            if (state.showExportDialog) {
+                org.example.project.presentation.whiteboard.component.ExportDialog(
+                    onWholeCanvasExport = {
+                        scope.launch {
+                            exportWholeCanvas(
+                                shapes = state.shapes,
+                                backgroundColor = state.canvasBackgroundColor,
+                                textMeasurer = textMeasurer,
+                                density = density,
+                                layoutDirection = layoutDirection,
+                                imageSaver = imageSaver,
+                                snackbarHostState = snackbarHostState
+                            )
+                        }
+                        onEvent(WhiteBoardEvent.OnExportWholeCanvas)
+                    },
+                    onVisibleScreenExport = {
+                        scope.launch {
+                            exportVisibleScreen(
+                                shapes = state.shapes,
+                                backgroundColor = state.canvasBackgroundColor,
+                                viewportSize = actualViewportSize,
+                                zoom = zoom,
+                                pan = pan,
+                                textMeasurer = textMeasurer,
+                                density = density,
+                                layoutDirection = layoutDirection,
+                                imageSaver = imageSaver,
+                                snackbarHostState = snackbarHostState
+                            )
+                        }
+                        onEvent(WhiteBoardEvent.OnExportVisibleScreen)
+                    },
+                    onDismiss = { onEvent(WhiteBoardEvent.OnExportDialogDismiss) }
                 )
             }
 
@@ -1083,3 +1066,184 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
             }
         }
     }
+
+// Export Helper Functions
+
+/**
+ * Export Mode A: Whole Canvas
+ * - Calculates bounding box of all shapes
+ * - Creates bitmap sized to fit content (with padding)
+ * - Draws shapes at scale 1.0 translated to start at (0,0)
+ */
+private suspend fun exportWholeCanvas(
+    shapes: List<DrawnShape>,
+    backgroundColor: Color,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    density: androidx.compose.ui.unit.Density,
+    layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+    imageSaver: org.example.project.utils.PlatformImageSaver,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState
+) {
+    // Show notification
+    val snackbarJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        snackbarHostState.showSnackbar(
+            message = "✓ Exporting whole canvas...",
+            duration = androidx.compose.material3.SnackbarDuration.Short
+        )
+    }
+
+    try {
+        // Calculate bounding box of all shapes
+        val bounds = org.example.project.utils.GeometryHelper.calculateOverallBounds(shapes)
+
+        if (bounds == null || shapes.isEmpty()) {
+            // No content to export
+            snackbarJob.cancel()
+            snackbarHostState.showSnackbar(
+                message = "⚠ Canvas is empty, nothing to export",
+                duration = androidx.compose.material3.SnackbarDuration.Short
+            )
+            return
+        }
+
+        // Add padding
+        val padding = 50f
+        val contentWidth = (bounds.width + padding * 2).toInt().coerceAtLeast(100)
+        val contentHeight = (bounds.height + padding * 2).toInt().coerceAtLeast(100)
+
+        // Create bitmap
+        val bitmap = androidx.compose.ui.graphics.ImageBitmap(contentWidth, contentHeight)
+        val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
+
+        // Draw
+        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+            density = density,
+            layoutDirection = layoutDirection,
+            canvas = canvas,
+            size = Size(contentWidth.toFloat(), contentHeight.toFloat())
+        ) {
+            // Draw background
+            drawRect(
+                color = backgroundColor,
+                size = Size(contentWidth.toFloat(), contentHeight.toFloat())
+            )
+
+            // Draw ink layer with offscreen compositing
+            drawIntoCanvas { canvas ->
+                canvas.saveLayer(
+                    androidx.compose.ui.geometry.Rect(0f, 0f, contentWidth.toFloat(), contentHeight.toFloat()),
+                    androidx.compose.ui.graphics.Paint()
+                )
+
+                // Translate so top-left shape is at padding
+                canvas.translate(-bounds.left + padding, -bounds.top + padding)
+
+                // Draw all shapes at scale 1.0
+                shapes.forEach { shape ->
+                    this.drawDrawnShape(shape, textMeasurer)
+                }
+
+                canvas.restore()
+            }
+        }
+
+        imageSaver.saveImage(bitmap)
+
+        // Success notification
+        snackbarJob.cancel()
+        snackbarHostState.showSnackbar(
+            message = "✓ Whole canvas saved (${contentWidth}x${contentHeight}px)",
+            duration = androidx.compose.material3.SnackbarDuration.Short
+        )
+    } catch (e: Exception) {
+        snackbarJob.cancel()
+        snackbarHostState.showSnackbar(
+            message = "✗ Export failed: ${e.message}",
+            duration = androidx.compose.material3.SnackbarDuration.Long
+        )
+    }
+}
+
+/**
+ * Export Mode B: Visible Screen
+ * - Creates bitmap sized to viewport
+ * - Applies current zoom and pan
+ * - Captures exactly what user sees
+ */
+private suspend fun exportVisibleScreen(
+    shapes: List<DrawnShape>,
+    backgroundColor: Color,
+    viewportSize: Size,
+    zoom: Float,
+    pan: Offset,
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    density: androidx.compose.ui.unit.Density,
+    layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+    imageSaver: org.example.project.utils.PlatformImageSaver,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState
+) {
+    // Show notification
+    val snackbarJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        snackbarHostState.showSnackbar(
+            message = "✓ Exporting visible screen...",
+            duration = androidx.compose.material3.SnackbarDuration.Short
+        )
+    }
+
+    try {
+        val width = viewportSize.width.toInt().coerceAtLeast(100)
+        val height = viewportSize.height.toInt().coerceAtLeast(100)
+
+        // Create bitmap
+        val bitmap = androidx.compose.ui.graphics.ImageBitmap(width, height)
+        val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
+
+        // Draw
+        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+            density = density,
+            layoutDirection = layoutDirection,
+            canvas = canvas,
+            size = Size(width.toFloat(), height.toFloat())
+        ) {
+            // Draw background
+            drawRect(
+                color = backgroundColor,
+                size = Size(width.toFloat(), height.toFloat())
+            )
+
+            // Draw ink layer with offscreen compositing
+            drawIntoCanvas { canvas ->
+                canvas.saveLayer(
+                    androidx.compose.ui.geometry.Rect(0f, 0f, width.toFloat(), height.toFloat()),
+                    androidx.compose.ui.graphics.Paint()
+                )
+
+                // Apply viewport transform (zoom + pan)
+                canvas.scale(zoom, zoom)
+                canvas.translate(pan.x / zoom, pan.y / zoom)
+
+                // Draw all shapes with current viewport transform
+                shapes.forEach { shape ->
+                    this.drawDrawnShape(shape, textMeasurer)
+                }
+
+                canvas.restore()
+            }
+        }
+
+        imageSaver.saveImage(bitmap)
+
+        // Success notification
+        snackbarJob.cancel()
+        snackbarHostState.showSnackbar(
+            message = "✓ Visible screen saved (${width}x${height}px)",
+            duration = androidx.compose.material3.SnackbarDuration.Short
+        )
+    } catch (e: Exception) {
+        snackbarJob.cancel()
+        snackbarHostState.showSnackbar(
+            message = "✗ Export failed: ${e.message}",
+            duration = androidx.compose.material3.SnackbarDuration.Long
+        )
+    }
+}

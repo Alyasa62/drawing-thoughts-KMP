@@ -48,7 +48,10 @@ data class WhiteBoardState(
     val textFontStyle: FontStyle = FontStyle.Normal,
 
     // Clear Canvas Dialog State
-    val showClearConfirmDialog: Boolean = false
+    val showClearConfirmDialog: Boolean = false,
+
+    // Export Dialog State
+    val showExportDialog: Boolean = false
 ) {
     /**
      * Get the current tool's color setting

@@ -183,6 +183,22 @@ class WhiteBoardViewModel : ViewModel() {
                 _state.update { it.copy(showClearConfirmDialog = false) }
             }
 
+            // Export
+            WhiteBoardEvent.OnExportRequest -> {
+                _state.update { it.copy(showExportDialog = true) }
+            }
+            WhiteBoardEvent.OnExportWholeCanvas -> {
+                // Logic handled in WhiteBoardScreen
+                _state.update { it.copy(showExportDialog = false) }
+            }
+            WhiteBoardEvent.OnExportVisibleScreen -> {
+                // Logic handled in WhiteBoardScreen
+                _state.update { it.copy(showExportDialog = false) }
+            }
+            WhiteBoardEvent.OnExportDialogDismiss -> {
+                _state.update { it.copy(showExportDialog = false) }
+            }
+
             // Properties - Update per-tool settings
             is WhiteBoardEvent.OnStrokeWidthChange -> {
                 _state.update { current ->

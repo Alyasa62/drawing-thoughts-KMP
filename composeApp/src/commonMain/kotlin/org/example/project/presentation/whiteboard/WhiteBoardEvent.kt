@@ -32,6 +32,12 @@ sealed interface WhiteBoardEvent {
     data object OnClearCanvasConfirm: WhiteBoardEvent
     data object OnClearCanvasCancel: WhiteBoardEvent
 
+    // Export
+    data object OnExportRequest: WhiteBoardEvent
+    data object OnExportWholeCanvas: WhiteBoardEvent
+    data object OnExportVisibleScreen: WhiteBoardEvent
+    data object OnExportDialogDismiss: WhiteBoardEvent
+
     // Properties
     data class OnStrokeWidthChange(val width: Float): WhiteBoardEvent
     data class OnColorChange(val color: Color): WhiteBoardEvent
