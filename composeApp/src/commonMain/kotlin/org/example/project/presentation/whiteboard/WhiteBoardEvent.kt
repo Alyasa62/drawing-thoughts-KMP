@@ -27,6 +27,11 @@ sealed interface WhiteBoardEvent {
     data object OnUndo: WhiteBoardEvent
     data object OnRedo: WhiteBoardEvent
 
+    // Clear Canvas
+    data object OnClearCanvasRequest: WhiteBoardEvent
+    data object OnClearCanvasConfirm: WhiteBoardEvent
+    data object OnClearCanvasCancel: WhiteBoardEvent
+
     // Properties
     data class OnStrokeWidthChange(val width: Float): WhiteBoardEvent
     data class OnColorChange(val color: Color): WhiteBoardEvent

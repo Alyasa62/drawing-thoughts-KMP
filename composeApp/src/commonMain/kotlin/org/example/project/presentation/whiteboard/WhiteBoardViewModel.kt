@@ -171,6 +171,18 @@ class WhiteBoardViewModel : ViewModel() {
             WhiteBoardEvent.OnUndo -> performUndo()
             WhiteBoardEvent.OnRedo -> performRedo()
 
+            // Clear Canvas
+            WhiteBoardEvent.OnClearCanvasRequest -> {
+                _state.update { it.copy(showClearConfirmDialog = true) }
+            }
+            WhiteBoardEvent.OnClearCanvasConfirm -> {
+                performClearCanvas()
+                _state.update { it.copy(showClearConfirmDialog = false) }
+            }
+            WhiteBoardEvent.OnClearCanvasCancel -> {
+                _state.update { it.copy(showClearConfirmDialog = false) }
+            }
+
             // Properties - Update per-tool settings
             is WhiteBoardEvent.OnStrokeWidthChange -> {
                 _state.update { current ->
@@ -436,6 +448,28 @@ class WhiteBoardViewModel : ViewModel() {
             addToHistory(state.value.shapes) // Push current to undo before redoing
             _state.update { it.copy(shapes = nextShapes) }
         }
+    }
+
+    private fun performClearCanvas() {
+        val currentShapes = state.value.shapes
+
+        // Only clear if there are shapes to clear
+        if (currentShapes.isEmpty()) return
+
+        // Save current state to undo stack BEFORE clearing
+        addToHistory(currentShapes)
+
+        // Clear all shapes
+        _state.update {
+            it.copy(
+                shapes = emptyList(),
+                selectedShapeId = null,
+                currentShape = null
+            )
+        }
+
+        // Clear redo stack (new action invalidates redo)
+        redoStack.clear()
     }
 
     private fun updateSelectedShapePosition(currentOffset: Offset) {

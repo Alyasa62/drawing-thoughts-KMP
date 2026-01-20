@@ -45,7 +45,10 @@ data class WhiteBoardState(
     val textFontSize: Float = 24f,
     val textFontFamily: FontFamily = FontFamily.Default,
     val textFontWeight: FontWeight = FontWeight.Normal,
-    val textFontStyle: FontStyle = FontStyle.Normal
+    val textFontStyle: FontStyle = FontStyle.Normal,
+
+    // Clear Canvas Dialog State
+    val showClearConfirmDialog: Boolean = false
 ) {
     /**
      * Get the current tool's color setting

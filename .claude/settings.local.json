@@ -13,7 +13,9 @@
       "Bash(cmd /c \"gradlew.bat :composeApp:compileKotlinJvm 2>&1\")",
       "Bash(cmd /c \"gradlew.bat :composeApp:build 2>&1 | findstr /C:BUILD /C:error /C:ERROR /C:Exception\")",
       "Bash(cmd /c \"gradlew.bat :composeApp:compileKotlinJvm --console=plain 2>&1 | tail -50\")",
-      "Bash(cmd /c \"echo Building project... && gradlew.bat clean :composeApp:compileKotlinJvm --no-daemon --stacktrace\")"
+      "Bash(cmd /c \"echo Building project... && gradlew.bat clean :composeApp:compileKotlinJvm --no-daemon --stacktrace\")",
+      "Bash(timeout /t 30)",
+      "Bash(.gradlew.bat :composeApp:build)"
     ]
   }
 }

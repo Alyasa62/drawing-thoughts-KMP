@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Delete
 
 @Composable
 fun TopBar(
@@ -36,6 +37,7 @@ fun TopBar(
     onHomeIconClick: () -> Unit,
     onUndoIconClick: () -> Unit,
     onRedoIconClick: () -> Unit,
+    onClearCanvasClick: () -> Unit,
     onCanvasSetupClick: () -> Unit,
     onResetViewClick: () -> Unit,
     onExportClick: () -> Unit
@@ -65,6 +67,13 @@ fun TopBar(
             Icon(
                 painter = painterResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
+                modifier = Modifier.size(25.dp)
+            )
+        }
+        FilledIconButton(onClick = { onClearCanvasClick() }) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = "Clear Canvas",
                 modifier = Modifier.size(25.dp)
             )
         }

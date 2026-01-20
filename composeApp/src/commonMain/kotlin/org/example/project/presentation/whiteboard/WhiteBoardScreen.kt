@@ -336,6 +336,7 @@ fun WhiteBoardScreen(
                 onHomeIconClick = { },
                 onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
                 onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
+                onClearCanvasClick = { onEvent(WhiteBoardEvent.OnClearCanvasRequest) },
                 onCanvasSetupClick = { showCanvasSetup = true },
                 onResetViewClick = {
                     onEvent(
@@ -431,6 +432,13 @@ fun WhiteBoardScreen(
                             showCanvasSetup = false
                         }) { Text("Done") }
                     }
+                )
+            }
+
+            if (state.showClearConfirmDialog) {
+                org.example.project.presentation.whiteboard.component.ClearCanvasConfirmDialog(
+                    onConfirm = { onEvent(WhiteBoardEvent.OnClearCanvasConfirm) },
+                    onDismiss = { onEvent(WhiteBoardEvent.OnClearCanvasCancel) }
                 )
             }
 
