@@ -75,8 +75,7 @@ fun DrawScope.drawSelectionOverlay(
             bounds.bottomLeft,
             bounds.bottomRight
         )
-        
-        // Corner Handles (Hollow Circles)
+
         corners.forEach { corner ->
              drawCircle(
                  color = Color.White,
