@@ -35,8 +35,13 @@ class ShapeRepository(private val dao: ShapeDao) {
             dao.deleteShapesByFolder(folderId)
         }
 
+        // Filter shapes to only save those belonging to this folder
+        val shapesForThisFolder = shapes.filter { it.folderId == folderId }
+
+        println("ShapeRepository: Filtered to ${shapesForThisFolder.size} shapes matching folderId: $folderId")
+
         // Insert the new shapes for this folder
-        val entities = shapes.map { shape ->
+        val entities = shapesForThisFolder.map { shape ->
             mapToEntity(shape)
         }
         dao.insertShapes(entities)
@@ -118,7 +123,7 @@ class ShapeRepository(private val dao: ShapeDao) {
     }
 
     private fun mapToDomain(entity: ShapeEntity): DrawnShape {
-        val color = Color(entity.color)
+        val color = Color((entity.color.toUInt().toULong()))
         val idString = entity.id.toString()
 
         // Parse tool type - will throw exception for legacy "FREEHAND" entries
