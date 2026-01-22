@@ -137,10 +137,8 @@ class ShapeRepository(private val dao: ShapeDao) {
             DrawingTool.PEN
         }
 
-        // Determine shape type based on available fields
         return when {
             entity.points != null -> {
-                // FreeHand shape
                 val points = entity.points.split(";").mapNotNull {
                     val parts = it.split(",")
                     if (parts.size == 2) Offset(parts[0].toFloat(), parts[1].toFloat()) else null
@@ -152,7 +150,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     id = idString,
                     color = color,
                     strokeWidth = entity.strokeWidth,
-                    drawingTool = tool, // Use actual tool from database (PEN, ERASER, HIGHLIGHTER, etc.)
+                    drawingTool = tool,
                     folderId = entity.folderId,
                     path = path,
                     points = points

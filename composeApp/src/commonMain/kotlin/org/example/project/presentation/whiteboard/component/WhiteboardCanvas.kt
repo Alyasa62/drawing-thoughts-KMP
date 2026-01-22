@@ -120,7 +120,6 @@ fun WhiteboardCanvas(
             }
         }
 
-        // Draw Active Shape (Currently being drawn)
         currentShape?.let {
             if (it is DrawnShape.Text) {
                 drawTextShape(it, false, 1f, textMeasurer)

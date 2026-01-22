@@ -881,7 +881,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                             val arrowHeadLength = actualStrokeWidth * 4f
                             val angle = kotlin.math.atan2(shape.end.y - shape.start.y, shape.end.x - shape.start.x)
 
-                            // Shorten line to accommodate arrow heads
                             val lineEnd = Offset(
                                 shape.end.x - arrowHeadLength * 0.7f * kotlin.math.cos(angle),
                                 shape.end.y - arrowHeadLength * 0.7f * kotlin.math.sin(angle)
@@ -920,7 +919,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                             }
                             drawPath(endArrowPath, actualColor, actualAlpha, androidx.compose.ui.graphics.drawscope.Fill, blendMode = actualBlendMode)
 
-                            // Start arrow head (two-sided only)
                             if (shape.drawingTool == DrawingTool.ARROW_TWO_SIDED) {
                                 val startAngle = angle + kotlin.math.PI.toFloat()
                                 val startArrowPath = androidx.compose.ui.graphics.Path().apply {
