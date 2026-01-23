@@ -37,12 +37,16 @@ class WhiteBoardViewModel : ViewModel() {
 
     // Repository Integration
     private val repository: org.example.project.data.repository.ShapeRepository by lazy {
+        println("ViewModel: Initializing ShapeRepository and building database")
         val db = org.example.project.data.local.getDatabaseBuilder().build()
+        println("ViewModel: Database built successfully")
         org.example.project.data.repository.ShapeRepository(db.shapeDao())
     }
 
     private val folderRepository: org.example.project.data.repository.FolderRepository by lazy {
+        println("ViewModel: Initializing FolderRepository and building database")
         val db = org.example.project.data.local.getDatabaseBuilder().build()
+        println("ViewModel: Database built successfully for folders")
         org.example.project.data.repository.FolderRepository(db.folderDao())
     }
 
@@ -66,7 +70,7 @@ class WhiteBoardViewModel : ViewModel() {
 
         // Auto-save logic with proper debouncing
         viewModelScope.launch {
-            state.collect { _ ->
+            state.collect { currentState ->
                 // Cancel any pending save
                 autoSaveJob?.cancel()
 
@@ -76,6 +80,7 @@ class WhiteBoardViewModel : ViewModel() {
                     // Save the LATEST state's shapes (read at save time, not collect time)
                     val latestState = state.value
                     println("ViewModel: Auto-saving ${latestState.shapes.size} shapes for folder ${latestState.selectedFolderId}")
+                    // CRITICAL: Use folder-specific save to preserve shapes in other folders
                     repository.saveShapesForFolder(latestState.shapes, latestState.selectedFolderId)
                 }
             }
@@ -601,7 +606,9 @@ class WhiteBoardViewModel : ViewModel() {
         val color = if (tool == DrawingTool.ERASER) {
             Color.Black // Placeholder, never rendered – eraser uses BlendMode.Clear.
         } else {
-            state.value.currentColor
+            val toolColor = state.value.currentColor
+            println("updateContinuingShape: tool=$tool, currentColor=$toolColor, toolSettings=${state.value.toolSettings[tool]}")
+            toolColor
         }
         val strokeWidth = state.value.currentStrokeWidth
         val folderId = state.value.selectedFolderId
@@ -844,12 +851,23 @@ class WhiteBoardViewModel : ViewModel() {
     private fun handleFolderSelect(folderId: String?) {
         viewModelScope.launch {
             try {
+                println("ViewModel: handleFolderSelect - Switching from folder ${_state.value.selectedFolderId} to folder $folderId")
+
                 // Auto-save current shapes to their folder before switching (even if empty)
                 val currentFolderId = _state.value.selectedFolderId
-                repository.saveShapesForFolder(_state.value.shapes, currentFolderId)
+                val currentShapes = _state.value.shapes
+                println("ViewModel: Current folder has ${currentShapes.size} shapes in memory")
+                currentShapes.forEachIndexed { index, shape ->
+                    println("  Shape $index: folderId=${shape.folderId}, type=${shape::class.simpleName}")
+                }
+
+                repository.saveShapesForFolder(currentShapes, currentFolderId)
+                println("ViewModel: Saved shapes for current folder $currentFolderId")
 
                 // Load shapes for the selected folder
+                println("ViewModel: Loading shapes for new folder $folderId")
                 val loadedShapes = repository.getShapesByFolder(folderId)
+                println("ViewModel: Loaded ${loadedShapes.size} shapes for folder $folderId")
 
                 _state.update {
                     it.copy(
@@ -859,11 +877,13 @@ class WhiteBoardViewModel : ViewModel() {
                         currentShape = null
                     )
                 }
+                println("ViewModel: Folder switch complete - now showing ${loadedShapes.size} shapes")
 
                 // Clear undo/redo stacks when switching folders
                 undoStack.clear()
                 redoStack.clear()
             } catch (e: Exception) {
+                println("ViewModel: ERROR in handleFolderSelect: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -899,6 +919,31 @@ class WhiteBoardViewModel : ViewModel() {
                     handleFolderSelect(null)
                 }
             } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // CRITICAL: Save all data immediately when ViewModel is destroyed
+        // This ensures data is persisted when the app is closed or activity is destroyed
+        println("ViewModel: onCleared() called - saving data immediately")
+
+        // Cancel pending auto-save to avoid conflicts
+        autoSaveJob?.cancel()
+
+        // Perform immediate synchronous save using runBlocking
+        // This is acceptable in onCleared() as it only happens once during cleanup
+        kotlinx.coroutines.runBlocking {
+            try {
+                val currentState = state.value
+                println("ViewModel: Saving ${currentState.shapes.size} shapes for folder ${currentState.selectedFolderId}")
+                // Save shapes for current folder only
+                repository.saveShapesForFolder(currentState.shapes, currentState.selectedFolderId)
+                println("ViewModel: Save completed successfully")
+            } catch (e: Exception) {
+                println("ViewModel: Error saving in onCleared: ${e.message}")
                 e.printStackTrace()
             }
         }

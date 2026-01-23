@@ -14,6 +14,33 @@ import org.example.project.utils.PathSmoother
 
 class ShapeRepository(private val dao: ShapeDao) {
 
+    suspend fun saveAllShapes(shapes: List<DrawnShape>) {
+        try {
+            println("ShapeRepository: Saving ALL ${shapes.size} shapes (replacing entire database)")
+            shapes.forEachIndexed { index, shape ->
+                println("  Shape $index: ${shape::class.simpleName}, color=${shape.color}, folderId=${shape.folderId}")
+            }
+
+            // Delete ALL shapes and replace with current state
+            println("ShapeRepository: Deleting all existing shapes")
+            dao.deleteAllShapes()
+            println("ShapeRepository: Delete completed")
+
+            // Save all shapes
+            val entities = shapes.map { shape ->
+                mapToEntity(shape)
+            }
+            println("ShapeRepository: Inserting ${entities.size} entities into database")
+            dao.insertShapes(entities)
+            println("ShapeRepository: ✓ Successfully saved ALL ${entities.size} entities to database")
+        } catch (e: Exception) {
+            println("ShapeRepository: ✗ ERROR during save all: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    @Deprecated("Use saveAllShapes instead for auto-save to avoid data loss")
     suspend fun saveShapes(shapes: List<DrawnShape>) {
         dao.deleteAllShapes()
         val entities = shapes.map { shape ->
@@ -23,29 +50,38 @@ class ShapeRepository(private val dao: ShapeDao) {
     }
 
     suspend fun saveShapesForFolder(shapes: List<DrawnShape>, folderId: String?) {
-        println("ShapeRepository: Saving ${shapes.size} shapes for folder: $folderId")
-        shapes.forEachIndexed { index, shape ->
-            println("  Shape $index: ${shape::class.simpleName}, color=${shape.color}, folderId=${shape.folderId}")
+        try {
+            println("ShapeRepository: Saving ${shapes.size} shapes for folder: $folderId")
+            shapes.forEachIndexed { index, shape ->
+                println("  Shape $index: ${shape::class.simpleName}, color=${shape.color}, folderId=${shape.folderId}")
+            }
+
+            // Delete only shapes from the current folder
+            println("ShapeRepository: Deleting existing shapes for folder: $folderId")
+            if (folderId == null) {
+                dao.deleteShapesWithoutFolder()
+            } else {
+                dao.deleteShapesByFolder(folderId)
+            }
+            println("ShapeRepository: Delete completed")
+
+            // Filter shapes to only save those belonging to this folder
+            val shapesForThisFolder = shapes.filter { it.folderId == folderId }
+
+            println("ShapeRepository: Filtered to ${shapesForThisFolder.size} shapes matching folderId: $folderId")
+
+            // Insert the new shapes for this folder
+            val entities = shapesForThisFolder.map { shape ->
+                mapToEntity(shape)
+            }
+            println("ShapeRepository: Inserting ${entities.size} entities into database")
+            dao.insertShapes(entities)
+            println("ShapeRepository: ✓ Successfully saved ${entities.size} entities to database")
+        } catch (e: Exception) {
+            println("ShapeRepository: ✗ ERROR during save: ${e.message}")
+            e.printStackTrace()
+            throw e
         }
-
-        // Delete only shapes from the current folder
-        if (folderId == null) {
-            dao.deleteShapesWithoutFolder()
-        } else {
-            dao.deleteShapesByFolder(folderId)
-        }
-
-        // Filter shapes to only save those belonging to this folder
-        val shapesForThisFolder = shapes.filter { it.folderId == folderId }
-
-        println("ShapeRepository: Filtered to ${shapesForThisFolder.size} shapes matching folderId: $folderId")
-
-        // Insert the new shapes for this folder
-        val entities = shapesForThisFolder.map { shape ->
-            mapToEntity(shape)
-        }
-        dao.insertShapes(entities)
-        println("ShapeRepository: Saved ${entities.size} entities")
     }
 
     suspend fun getShapes(): List<DrawnShape> {
@@ -73,12 +109,15 @@ class ShapeRepository(private val dao: ShapeDao) {
     }
 
     private fun mapToEntity(shape: DrawnShape): ShapeEntity {
-        val idLong = shape.id.toLongOrNull() ?: 0L 
-        
+        val idLong = shape.id.toLongOrNull() ?: 0L
+
         return when (shape) {
             is DrawnShape.FreeHand -> {
                 val pointsString = shape.points.joinToString(";") { "${it.x},${it.y}" }
-                val colorInt = (shape.color.value and 0xFFFFFFFFuL).toInt()
+                // CRITICAL FIX: Color.value is a 64-bit ULong with ARGB in upper 32 bits
+                // We need to shift right by 32 bits to get the actual color value
+                val colorInt = (shape.color.value shr 32).toInt()
+                println("  mapToEntity FreeHand: color=${shape.color} (ULong=${shape.color.value}) -> colorInt=$colorInt (0x${colorInt.toUInt().toString(16)})")
                 ShapeEntity(
                     id = idLong,
                     type = shape.drawingTool.name,
@@ -89,7 +128,9 @@ class ShapeRepository(private val dao: ShapeDao) {
                 )
             }
             is DrawnShape.Geometric -> {
-                val colorInt = (shape.color.value and 0xFFFFFFFFuL).toInt()
+                // CRITICAL FIX: Color.value is a 64-bit ULong with ARGB in upper 32 bits
+                val colorInt = (shape.color.value shr 32).toInt()
+                println("  mapToEntity Geometric: color=${shape.color} (ULong=${shape.color.value}) -> colorInt=$colorInt (0x${colorInt.toUInt().toString(16)})")
                 ShapeEntity(
                     id = idLong,
                     type = shape.drawingTool.name,
@@ -103,7 +144,8 @@ class ShapeRepository(private val dao: ShapeDao) {
                 )
             }
             is DrawnShape.Text -> {
-                val colorInt = (shape.color.value and 0xFFFFFFFFuL).toInt()
+                // CRITICAL FIX: Color.value is a 64-bit ULong with ARGB in upper 32 bits
+                val colorInt = (shape.color.value shr 32).toInt()
                 ShapeEntity(
                     id = idLong,
                     type = shape.drawingTool.name,
@@ -123,7 +165,12 @@ class ShapeRepository(private val dao: ShapeDao) {
     }
 
     private fun mapToDomain(entity: ShapeEntity): DrawnShape {
-        val color = Color((entity.color.toUInt().toULong()))
+        // CRITICAL FIX: entity.color is a signed Int from database containing ARGB
+        // Color constructor expects ULong with ARGB in upper 32 bits
+        // So we need to: Int -> UInt (reinterpret bits) -> shift left 32 -> ULong
+        val colorULong = entity.color.toUInt().toULong() shl 32
+        val color = Color(colorULong)
+        println("  mapToDomain: entity.color=${entity.color} (0x${entity.color.toUInt().toString(16)}) -> colorULong=0x${colorULong.toString(16)} -> Color=$color")
         val idString = entity.id.toString()
 
         // Parse tool type - will throw exception for legacy "FREEHAND" entries
