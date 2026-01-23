@@ -148,18 +148,37 @@ class WhiteBoardViewModel : ViewModel() {
                  if (_state.value.selectedTool == DrawingTool.SELECTOR) {
                      _state.update { it.copy(startingOffset = null) }
                  } else {
-                    val currentShape = state.value.currentShape
+                    var currentShape = state.value.currentShape
+                    val tool = state.value.selectedTool
+
+                    // Handle single tap case: if currentShape is null but we have a starting point, create a dot
+                    if (currentShape == null && isFreeHandTool(tool) && currentFreeHandPoints.isNotEmpty()) {
+                        val tapPoint = currentFreeHandPoints.first()
+                        val path = Path().apply {
+                            moveTo(tapPoint.x, tapPoint.y)
+                            lineTo(tapPoint.x, tapPoint.y)
+                        }
+                        val color = state.value.currentColor
+                        val strokeWidth = state.value.currentStrokeWidth
+                        val folderId = state.value.selectedFolderId
+                        val tempId = "temp_${kotlin.random.Random.nextInt()}"
+
+                        currentShape = DrawnShape.FreeHand(
+                            tempId, color, strokeWidth, tool, folderId, path, currentFreeHandPoints.toList()
+                        )
+                    }
+
                     if (currentShape != null) {
                         addToHistory(state.value.shapes) // Save state BEFORE adding new shape
-                        
+
                         val finalShape = if (currentShape is DrawnShape.FreeHand) {
-                            // Smooth the path
+                            // Smooth the path (rendering layer will detect single taps)
                             val smoothedPath = PathSmoother.createSmoothedPath(currentFreeHandPoints)
                             currentShape.copy(path = smoothedPath, points = currentFreeHandPoints.toList())
                         } else {
                             currentShape
                         }
-    
+
                         _state.update {
                             it.copy(
                                 shapes = it.shapes + finalShape,
@@ -590,10 +609,11 @@ class WhiteBoardViewModel : ViewModel() {
 
         val newShape: DrawnShape = if (isFreeHandTool(tool)) {
             currentFreeHandPoints.add(currentOffset)
-            // For live preview, we use the raw points or simple path
+            // For live preview, we use simple lineTo commands to ensure round caps at both ends
             val path = Path().apply {
                 if (currentFreeHandPoints.isNotEmpty()) {
                     moveTo(currentFreeHandPoints.first().x, currentFreeHandPoints.first().y)
+                    // Draw lines to all subsequent points
                     for (i in 1 until currentFreeHandPoints.size) {
                         lineTo(currentFreeHandPoints[i].x, currentFreeHandPoints[i].y)
                     }
@@ -614,6 +634,12 @@ class WhiteBoardViewModel : ViewModel() {
             DrawingTool.PEN, DrawingTool.HIGHLIGHTER, DrawingTool.LASER_PEN, DrawingTool.ERASER -> true
             else -> false
         }
+    }
+
+    private fun calculateDistance(p1: Offset, p2: Offset): Float {
+        val dx = p2.x - p1.x
+        val dy = p2.y - p1.y
+        return kotlin.math.sqrt(dx * dx + dy * dy)
     }
 
     /**

@@ -150,7 +150,8 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
             // Semi-transparent additive tint
             color = shape.color.copy(alpha = 0.4f)
             strokeWidth *= 2.5f
-            cap = StrokeCap.Square
+            // Use Round cap to ensure capsule-like appearance at both ends
+            cap = StrokeCap.Round
         }
         DrawingTool.LINE_DOTTED -> {
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 20f), 0f)
@@ -181,13 +182,44 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
     // 3. Draw
     when (shape) {
         is DrawnShape.FreeHand -> {
-            drawPath(
-                path = shape.path,
-                color = color,
-                alpha = alpha,
-                style = style,
-                blendMode = blendMode
-            )
+            // Check if this is a single-tap dot (very few points or all points very close together)
+            val isSingleTapDot = if (shape.points.isEmpty()) {
+                false
+            } else if (shape.points.size <= 2) {
+                true // Definitely a tap
+            } else {
+                // Check if all points are within 2 pixels of the first point
+                val firstPoint = shape.points[0]
+                shape.points.all { point ->
+                    val dx = point.x - firstPoint.x
+                    val dy = point.y - firstPoint.y
+                    kotlin.math.sqrt(dx * dx + dy * dy) < 2f
+                }
+            }
+
+            if (isSingleTapDot && (shape.drawingTool == DrawingTool.PEN ||
+                                   shape.drawingTool == DrawingTool.HIGHLIGHTER)) {
+                // Draw as a filled circle dot
+                val center = if (shape.points.isNotEmpty()) shape.points[0] else Offset.Zero
+                val radius = shape.strokeWidth / 2f
+                drawCircle(
+                    color = color,
+                    radius = radius,
+                    center = center,
+                    alpha = alpha,
+                    style = Fill,
+                    blendMode = blendMode
+                )
+            } else {
+                // Draw as normal path with stroke
+                drawPath(
+                    path = shape.path,
+                    color = color,
+                    alpha = alpha,
+                    style = style,
+                    blendMode = blendMode
+                )
+            }
         }
         is DrawnShape.Text -> {
             // Text shapes are not drawn here - they're handled separately by drawTextShape

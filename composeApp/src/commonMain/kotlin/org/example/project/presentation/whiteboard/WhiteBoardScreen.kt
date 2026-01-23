@@ -201,12 +201,18 @@ fun WhiteBoardScreen(
                 // 3. TEXT TOOL LISTENER (Tap to create text + Universal double-tap to edit)
                 .pointerInput(state.selectedTool) {
                     val isTextTool = state.selectedTool == DrawingTool.TEXT
+                    val isPenOrHighlighter = state.selectedTool == DrawingTool.PEN ||
+                                             state.selectedTool == DrawingTool.HIGHLIGHTER
                     detectTapGestures(
                         onTap = { offset ->
-                            // Only create new text when TEXT tool is active
+                            val worldPoint = viewportState.screenToWorld(offset)
                             if (isTextTool) {
-                                val worldPoint = viewportState.screenToWorld(offset)
+                                // Create new text when TEXT tool is active
                                 onEvent(WhiteBoardEvent.OnTextCreate(worldPoint))
+                            } else if (isPenOrHighlighter) {
+                                // Create a dot for single tap with Pen or Highlighter
+                                onEvent(WhiteBoardEvent.StartDrawing(worldPoint))
+                                onEvent(WhiteBoardEvent.FinishDrawing)
                             }
                         },
                         onDoubleTap = { offset ->
