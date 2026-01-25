@@ -303,7 +303,8 @@ fun WhiteBoardScreen(
             // LAYER B: GRID (Middle Layer - Visual Guide Only)
             org.example.project.presentation.whiteboard.component.InfiniteGrid(
                 zoom = zoom,
-                pan = pan
+                pan = pan,
+                pattern = state.selectedPattern
             )
 
             // LAYER C: INK LAYER (Top Layer - Offscreen Compositing)
@@ -379,6 +380,9 @@ fun WhiteBoardScreen(
                 onExportClick = {
                     // Show export dialog instead of exporting immediately
                     onEvent(WhiteBoardEvent.OnExportRequest)
+                },
+                onGridSettingsClick = {
+                    onEvent(WhiteBoardEvent.OnGridSettingsRequest)
                 }
             )
 
@@ -461,6 +465,17 @@ fun WhiteBoardScreen(
                         onEvent(WhiteBoardEvent.OnCreateFolderConfirm(name, color))
                     },
                     onDismiss = { onEvent(WhiteBoardEvent.OnCreateFolderCancel) }
+                )
+            }
+
+            if (state.showGridSettingsDialog) {
+                org.example.project.presentation.whiteboard.component.GridSettingsDialog(
+                    selectedPattern = state.selectedPattern,
+                    onPatternSelect = { pattern ->
+                        onEvent(WhiteBoardEvent.OnCanvasPatternChange(pattern))
+                    },
+                    onConfirm = { onEvent(WhiteBoardEvent.OnGridSettingsConfirm) },
+                    onDismiss = { onEvent(WhiteBoardEvent.OnGridSettingsCancel) }
                 )
             }
 

@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import org.example.project.domain.model.CanvasPattern
 import org.example.project.domain.model.DrawingTool
 
 sealed interface WhiteBoardEvent {
@@ -62,4 +63,10 @@ sealed interface WhiteBoardEvent {
     data class OnCreateFolderConfirm(val name: String, val color: Color): WhiteBoardEvent
     data object OnCreateFolderCancel: WhiteBoardEvent
     data class OnDeleteFolder(val folder: org.example.project.domain.model.Folder): WhiteBoardEvent
+
+    // Grid Settings Events
+    data object OnGridSettingsRequest: WhiteBoardEvent
+    data class OnCanvasPatternChange(val pattern: CanvasPattern): WhiteBoardEvent
+    data object OnGridSettingsConfirm: WhiteBoardEvent
+    data object OnGridSettingsCancel: WhiteBoardEvent
 }

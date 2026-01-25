@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import org.example.project.domain.model.CanvasPattern
 import org.example.project.domain.model.DrawingTool
 import org.example.project.domain.model.DrawnShape
 
@@ -25,6 +26,7 @@ data class WhiteBoardState(
 
     // Canvas Settings
     val canvasBackgroundColor: Color = Color.White,
+    val selectedPattern: CanvasPattern = CanvasPattern.DEFAULT,
 
     // Shape Transform State
     val transientScale: Float = 1f,
@@ -56,7 +58,10 @@ data class WhiteBoardState(
     // Folder System State
     val folders: List<org.example.project.domain.model.Folder> = emptyList(),
     val selectedFolderId: String? = null, // null means "All Drawings"
-    val showCreateFolderDialog: Boolean = false
+    val showCreateFolderDialog: Boolean = false,
+
+    // Grid Settings Dialog State
+    val showGridSettingsDialog: Boolean = false
 ) {
     /**
      * Get the current tool's color setting

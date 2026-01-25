@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.GridOn
 
 @Composable
 fun TopBar(
@@ -42,7 +43,8 @@ fun TopBar(
     onClearCanvasClick: () -> Unit,
     onCanvasSetupClick: () -> Unit,
     onResetViewClick: () -> Unit,
-    onExportClick: () -> Unit
+    onExportClick: () -> Unit,
+    onGridSettingsClick: () -> Unit = {}
 ) {
     var isMoreOptionMenuOpened by rememberSaveable {
         mutableStateOf(false)
@@ -99,7 +101,8 @@ fun TopBar(
                 onMenuDismiss = { isMoreOptionMenuOpened = false },
                 onCanvasSetupClick = onCanvasSetupClick,
                 onResetViewClick = onResetViewClick,
-                onExportClick = onExportClick
+                onExportClick = onExportClick,
+                onGridSettingsClick = onGridSettingsClick
             )
         }
     }
@@ -112,7 +115,8 @@ private fun MoreOptionsMenu (
     onMenuDismiss: () -> Unit,
     onCanvasSetupClick: () -> Unit,
     onResetViewClick: () -> Unit,
-    onExportClick: () -> Unit
+    onExportClick: () -> Unit,
+    onGridSettingsClick: () -> Unit
 ) {
     DropdownMenu(
         expanded = isExpended,
@@ -121,19 +125,29 @@ private fun MoreOptionsMenu (
     ) {
         DropdownMenuItem(
             text = { Text("Canvas Setup") },
-            onClick = { 
+            onClick = {
                 onCanvasSetupClick()
-                onMenuDismiss() 
+                onMenuDismiss()
             },
             leadingIcon = {
                 Icon(Icons.Filled.Settings, contentDescription = "Canvas Setup")
             }
         )
         DropdownMenuItem(
+            text = { Text("Grid Settings") },
+            onClick = {
+                onGridSettingsClick()
+                onMenuDismiss()
+            },
+            leadingIcon = {
+                Icon(Icons.Filled.GridOn, contentDescription = "Grid Settings")
+            }
+        )
+        DropdownMenuItem(
             text = { Text("Reset View") },
-            onClick = { 
+            onClick = {
                 onResetViewClick()
-                onMenuDismiss() 
+                onMenuDismiss()
             },
             leadingIcon = {
                 Icon(Icons.Filled.Home, contentDescription = "Reset View")
@@ -141,9 +155,9 @@ private fun MoreOptionsMenu (
         )
         DropdownMenuItem(
             text = { Text("Export Image") },
-            onClick = { 
+            onClick = {
                 onExportClick()
-                onMenuDismiss() 
+                onMenuDismiss()
             },
             leadingIcon = {
                 Icon(Icons.Default.Share, contentDescription = "Export")

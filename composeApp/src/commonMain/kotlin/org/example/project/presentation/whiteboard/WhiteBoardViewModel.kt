@@ -50,6 +50,12 @@ class WhiteBoardViewModel : ViewModel() {
         org.example.project.data.repository.FolderRepository(db.folderDao())
     }
 
+    private val canvasSettingsDao: org.example.project.data.local.dao.CanvasSettingsDao by lazy {
+        println("ViewModel: Initializing CanvasSettingsDao")
+        val db = org.example.project.data.local.getDatabaseBuilder().build()
+        db.canvasSettingsDao()
+    }
+
     init {
         // Load initial state - "All Drawings" (shapes without folder)
         viewModelScope.launch {
@@ -59,6 +65,11 @@ class WhiteBoardViewModel : ViewModel() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+
+        // Load canvas settings for initial folder (All Drawings)
+        viewModelScope.launch {
+            loadCanvasSettingsForCurrentFolder()
         }
 
         // Collect folders from database
@@ -505,6 +516,21 @@ class WhiteBoardViewModel : ViewModel() {
             is WhiteBoardEvent.OnDeleteFolder -> {
                 handleDeleteFolder(event.folder)
             }
+
+            // Grid Settings Events
+            WhiteBoardEvent.OnGridSettingsRequest -> {
+                _state.update { it.copy(showGridSettingsDialog = true) }
+            }
+            is WhiteBoardEvent.OnCanvasPatternChange -> {
+                _state.update { it.copy(selectedPattern = event.pattern) }
+            }
+            WhiteBoardEvent.OnGridSettingsConfirm -> {
+                _state.update { it.copy(showGridSettingsDialog = false) }
+                saveCanvasSettings()
+            }
+            WhiteBoardEvent.OnGridSettingsCancel -> {
+                _state.update { it.copy(showGridSettingsDialog = false) }
+            }
         }
     }
 
@@ -879,6 +905,9 @@ class WhiteBoardViewModel : ViewModel() {
                 }
                 println("ViewModel: Folder switch complete - now showing ${loadedShapes.size} shapes")
 
+                // Load grid pattern for the new folder
+                loadCanvasSettingsForCurrentFolder()
+
                 // Clear undo/redo stacks when switching folders
                 undoStack.clear()
                 redoStack.clear()
@@ -900,6 +929,63 @@ class WhiteBoardViewModel : ViewModel() {
                 folderRepository.insertFolder(newFolder)
                 _state.update { it.copy(showCreateFolderDialog = false) }
             } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Converts folder ID to a key for canvas settings storage.
+     * null folder ID -> "ALL_DRAWINGS"
+     * actual folder ID -> use the folder ID as-is
+     */
+    private fun getFolderKey(folderId: String?): String {
+        return folderId ?: "ALL_DRAWINGS"
+    }
+
+    /**
+     * Loads canvas settings (grid pattern) for the currently selected folder.
+     */
+    private suspend fun loadCanvasSettingsForCurrentFolder() {
+        try {
+            val currentFolderId = _state.value.selectedFolderId
+            val folderKey = getFolderKey(currentFolderId)
+            val settings = canvasSettingsDao.getCanvasSettings(folderKey)
+
+            if (settings != null) {
+                val pattern = org.example.project.domain.model.CanvasPattern.fromString(settings.selectedPattern)
+                _state.update { it.copy(selectedPattern = pattern) }
+                println("ViewModel: Loaded canvas pattern for folder '$folderKey': $pattern")
+            } else {
+                // No settings saved for this folder yet, use default
+                _state.update { it.copy(selectedPattern = org.example.project.domain.model.CanvasPattern.DEFAULT) }
+                println("ViewModel: No canvas settings for folder '$folderKey', using default: ${org.example.project.domain.model.CanvasPattern.DEFAULT}")
+            }
+        } catch (e: Exception) {
+            println("ViewModel: Error loading canvas settings: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Saves canvas settings (grid pattern) for the currently selected folder.
+     */
+    private fun saveCanvasSettings() {
+        viewModelScope.launch {
+            try {
+                val currentFolderId = _state.value.selectedFolderId
+                val folderKey = getFolderKey(currentFolderId)
+                val currentPattern = _state.value.selectedPattern
+
+                val settingsEntity = org.example.project.data.local.entity.CanvasSettingsEntity(
+                    folderId = folderKey,
+                    selectedPattern = currentPattern.name,
+                    updatedAt = System.currentTimeMillis()
+                )
+                canvasSettingsDao.insertOrUpdateSettings(settingsEntity)
+                println("ViewModel: Saved canvas pattern for folder '$folderKey': $currentPattern")
+            } catch (e: Exception) {
+                println("ViewModel: Error saving canvas settings: ${e.message}")
                 e.printStackTrace()
             }
         }
