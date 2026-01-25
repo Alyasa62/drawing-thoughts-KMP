@@ -479,35 +479,43 @@ fun WhiteBoardScreen(
                 )
             }
 
-            if (showColorPicker) {
-                // Get the appropriate current color based on editing mode
-                val currentColor = if (state.isTextEditing) {
-                    (state.currentShape as? org.example.project.domain.model.DrawnShape.Text)?.color
-                        ?: state.currentColor
-                } else {
-                    state.currentColor
-                }
-
-                org.example.project.presentation.whiteboard.component.ColorPickerDialog(
-                    currentColor = currentColor,
-                    onColorSelected = { color ->
-                        // Use OnTextColorChange when editing text, otherwise OnColorChange
-                        if (state.isTextEditing) {
-                            onEvent(WhiteBoardEvent.OnTextColorChange(color))
-                        } else {
-                            onEvent(WhiteBoardEvent.OnColorChange(color))
-                        }
-                        showColorPicker = false
+            if (state.showStyleStudioDialog) {
+                org.example.project.presentation.whiteboard.component.StyleStudioDialog(
+                    currentBackgroundColor = state.canvasBackgroundColor,
+                    currentStrokeColor = state.currentColor,
+                    currentFillColor = state.currentColor, // Using stroke color for fill for now
+                    currentStrokeWidth = state.currentStrokeWidth,
+                    currentAlpha = state.currentColor.alpha,
+                    onBackgroundColorChange = { color ->
+                        onEvent(WhiteBoardEvent.OnStyleStudioBackgroundChange(color))
                     },
-                    onDismiss = { showColorPicker = false }
+                    onStrokeColorChange = { color ->
+                        onEvent(WhiteBoardEvent.OnStyleStudioStrokeChange(color))
+                    },
+                    onFillColorChange = { color ->
+                        onEvent(WhiteBoardEvent.OnStyleStudioFillChange(color))
+                    },
+                    onStrokeWidthChange = { width ->
+                        onEvent(WhiteBoardEvent.OnStyleStudioStrokeWidthChange(width))
+                    },
+                    onAlphaChange = { alpha ->
+                        onEvent(WhiteBoardEvent.OnStyleStudioAlphaChange(alpha))
+                    },
+                    onDismiss = { onEvent(WhiteBoardEvent.OnStyleStudioDismiss) }
                 )
             }
+
+            // OLD COLOR PICKER - Replaced by Style Studio
+            // Keeping variable for compatibility but no longer showing dialog
+            // if (showColorPicker) {
+            //     // Old color picker removed - now using StyleStudioDialog
+            // }
 
             // --- HUD ---
             org.example.project.presentation.whiteboard.component.DynamicHUD(
                 state = state,
-                onColorClick = { showColorPicker = true },
-                onStrokeWidthClick = { showStrokeSlider = true },
+                onColorClick = { onEvent(WhiteBoardEvent.OnStyleStudioRequest) },
+                onStrokeWidthClick = { onEvent(WhiteBoardEvent.OnStyleStudioRequest) },
                 onShapeSelected = { onEvent(WhiteBoardEvent.OnDrawingToolSelected(it)) },
                 onDeleteClick = { onEvent(WhiteBoardEvent.OnDeleteSelectedShape) },
                 onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
@@ -548,7 +556,7 @@ fun WhiteBoardScreen(
                 org.example.project.presentation.whiteboard.component.KeyboardAttachedToolbar(
                     state = state,
                     visible = state.isTextEditing,
-                    onColorClick = { showColorPicker = true },
+                    onColorClick = { onEvent(WhiteBoardEvent.OnStyleStudioRequest) },
                     onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
                     onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
                     onFontWeightChange = { onEvent(WhiteBoardEvent.OnTextFontWeightChange(it)) },

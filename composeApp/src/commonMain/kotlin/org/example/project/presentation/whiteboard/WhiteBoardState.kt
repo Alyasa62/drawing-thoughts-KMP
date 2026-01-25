@@ -61,7 +61,10 @@ data class WhiteBoardState(
     val showCreateFolderDialog: Boolean = false,
 
     // Grid Settings Dialog State
-    val showGridSettingsDialog: Boolean = false
+    val showGridSettingsDialog: Boolean = false,
+
+    // Style Studio Dialog State
+    val showStyleStudioDialog: Boolean = false
 ) {
     /**
      * Get the current tool's color setting

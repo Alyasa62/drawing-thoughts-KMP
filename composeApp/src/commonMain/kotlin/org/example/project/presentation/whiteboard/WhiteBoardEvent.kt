@@ -69,4 +69,13 @@ sealed interface WhiteBoardEvent {
     data class OnCanvasPatternChange(val pattern: CanvasPattern): WhiteBoardEvent
     data object OnGridSettingsConfirm: WhiteBoardEvent
     data object OnGridSettingsCancel: WhiteBoardEvent
+
+    // Style Studio Events
+    data object OnStyleStudioRequest: WhiteBoardEvent
+    data class OnStyleStudioBackgroundChange(val color: Color): WhiteBoardEvent
+    data class OnStyleStudioStrokeChange(val color: Color): WhiteBoardEvent
+    data class OnStyleStudioFillChange(val color: Color): WhiteBoardEvent
+    data class OnStyleStudioStrokeWidthChange(val width: Float): WhiteBoardEvent
+    data class OnStyleStudioAlphaChange(val alpha: Float): WhiteBoardEvent
+    data object OnStyleStudioDismiss: WhiteBoardEvent
 }

@@ -531,6 +531,61 @@ class WhiteBoardViewModel : ViewModel() {
             WhiteBoardEvent.OnGridSettingsCancel -> {
                 _state.update { it.copy(showGridSettingsDialog = false) }
             }
+
+            // Style Studio Events
+            WhiteBoardEvent.OnStyleStudioRequest -> {
+                _state.update { it.copy(showStyleStudioDialog = true) }
+            }
+            is WhiteBoardEvent.OnStyleStudioBackgroundChange -> {
+                _state.update { it.copy(canvasBackgroundColor = event.color) }
+                // Save immediately when background color changes
+                saveCanvasSettings()
+            }
+            is WhiteBoardEvent.OnStyleStudioStrokeChange -> {
+                val currentTool = _state.value.selectedTool
+                val currentSettings = _state.value.toolSettings[currentTool]
+                if (currentSettings != null) {
+                    val updatedSettings = currentSettings.copy(color = event.color)
+                    _state.update {
+                        it.copy(
+                            toolSettings = it.toolSettings + (currentTool to updatedSettings)
+                        )
+                    }
+                }
+            }
+            is WhiteBoardEvent.OnStyleStudioFillChange -> {
+                // Fill color - for future shape fill implementation
+                // Currently not used but reserved for filled shapes
+            }
+            is WhiteBoardEvent.OnStyleStudioStrokeWidthChange -> {
+                val currentTool = _state.value.selectedTool
+                val currentSettings = _state.value.toolSettings[currentTool]
+                if (currentSettings != null) {
+                    val updatedSettings = currentSettings.copy(strokeWidth = event.width)
+                    _state.update {
+                        it.copy(
+                            toolSettings = it.toolSettings + (currentTool to updatedSettings)
+                        )
+                    }
+                }
+            }
+            is WhiteBoardEvent.OnStyleStudioAlphaChange -> {
+                val currentTool = _state.value.selectedTool
+                val currentSettings = _state.value.toolSettings[currentTool]
+                if (currentSettings != null) {
+                    val currentColor = currentSettings.color
+                    val newColor = currentColor.copy(alpha = event.alpha)
+                    val updatedSettings = currentSettings.copy(color = newColor)
+                    _state.update {
+                        it.copy(
+                            toolSettings = it.toolSettings + (currentTool to updatedSettings)
+                        )
+                    }
+                }
+            }
+            WhiteBoardEvent.OnStyleStudioDismiss -> {
+                _state.update { it.copy(showStyleStudioDialog = false) }
+            }
         }
     }
 
@@ -944,7 +999,7 @@ class WhiteBoardViewModel : ViewModel() {
     }
 
     /**
-     * Loads canvas settings (grid pattern) for the currently selected folder.
+     * Loads canvas settings (grid pattern and background color) for the currently selected folder.
      */
     private suspend fun loadCanvasSettingsForCurrentFolder() {
         try {
@@ -954,12 +1009,18 @@ class WhiteBoardViewModel : ViewModel() {
 
             if (settings != null) {
                 val pattern = org.example.project.domain.model.CanvasPattern.fromString(settings.selectedPattern)
-                _state.update { it.copy(selectedPattern = pattern) }
-                println("ViewModel: Loaded canvas pattern for folder '$folderKey': $pattern")
+                val backgroundColor = androidx.compose.ui.graphics.Color(settings.backgroundColor.toULong())
+                _state.update { it.copy(selectedPattern = pattern, canvasBackgroundColor = backgroundColor) }
+                println("ViewModel: Loaded canvas settings for folder '$folderKey': pattern=$pattern, bgColor=$backgroundColor")
             } else {
-                // No settings saved for this folder yet, use default
-                _state.update { it.copy(selectedPattern = org.example.project.domain.model.CanvasPattern.DEFAULT) }
-                println("ViewModel: No canvas settings for folder '$folderKey', using default: ${org.example.project.domain.model.CanvasPattern.DEFAULT}")
+                // No settings saved for this folder yet, use defaults
+                _state.update {
+                    it.copy(
+                        selectedPattern = org.example.project.domain.model.CanvasPattern.DEFAULT,
+                        canvasBackgroundColor = androidx.compose.ui.graphics.Color.White
+                    )
+                }
+                println("ViewModel: No canvas settings for folder '$folderKey', using defaults")
             }
         } catch (e: Exception) {
             println("ViewModel: Error loading canvas settings: ${e.message}")
@@ -968,7 +1029,7 @@ class WhiteBoardViewModel : ViewModel() {
     }
 
     /**
-     * Saves canvas settings (grid pattern) for the currently selected folder.
+     * Saves canvas settings (grid pattern and background color) for the currently selected folder.
      */
     private fun saveCanvasSettings() {
         viewModelScope.launch {
@@ -976,14 +1037,16 @@ class WhiteBoardViewModel : ViewModel() {
                 val currentFolderId = _state.value.selectedFolderId
                 val folderKey = getFolderKey(currentFolderId)
                 val currentPattern = _state.value.selectedPattern
+                val currentBackgroundColor = _state.value.canvasBackgroundColor
 
                 val settingsEntity = org.example.project.data.local.entity.CanvasSettingsEntity(
                     folderId = folderKey,
                     selectedPattern = currentPattern.name,
+                    backgroundColor = currentBackgroundColor.value.toLong(),
                     updatedAt = System.currentTimeMillis()
                 )
                 canvasSettingsDao.insertOrUpdateSettings(settingsEntity)
-                println("ViewModel: Saved canvas pattern for folder '$folderKey': $currentPattern")
+                println("ViewModel: Saved canvas settings for folder '$folderKey': pattern=$currentPattern, bgColor=$currentBackgroundColor")
             } catch (e: Exception) {
                 println("ViewModel: Error saving canvas settings: ${e.message}")
                 e.printStackTrace()
