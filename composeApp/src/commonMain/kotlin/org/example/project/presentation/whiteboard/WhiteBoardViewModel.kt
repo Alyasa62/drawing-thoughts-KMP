@@ -586,6 +586,7 @@ class WhiteBoardViewModel : ViewModel() {
             WhiteBoardEvent.OnStyleStudioDismiss -> {
                 _state.update { it.copy(showStyleStudioDialog = false) }
             }
+
         }
     }
 
@@ -924,7 +925,7 @@ class WhiteBoardViewModel : ViewModel() {
                 current
             }
         }
-        
+
         _state.update { it.copy(shapes = updatedShapes) }
     }
 

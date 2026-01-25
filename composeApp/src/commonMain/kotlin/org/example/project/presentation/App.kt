@@ -25,7 +25,8 @@ fun App(imageSaver: PlatformImageSaver) {
                 modifier = Modifier.Companion.padding(innerPadding),
                 state = state,
                 onEvent = viewModel::onEvent,
-                imageSaver = imageSaver
+                imageSaver = imageSaver,
+                viewModel = viewModel
             )
 
         }

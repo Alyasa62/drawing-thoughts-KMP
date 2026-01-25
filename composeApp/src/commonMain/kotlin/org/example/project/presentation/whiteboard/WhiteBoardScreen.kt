@@ -75,7 +75,8 @@ fun WhiteBoardScreen(
     modifier: Modifier = Modifier,
     state: WhiteBoardState,
     onEvent: (WhiteBoardEvent) -> Unit,
-    imageSaver: org.example.project.utils.PlatformImageSaver
+    imageSaver: org.example.project.utils.PlatformImageSaver,
+    viewModel: WhiteBoardViewModel
 ) {
     var showCanvasSetup by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
@@ -120,15 +121,6 @@ fun WhiteBoardScreen(
         kotlinx.coroutines.delay(2000)
         isInteracting = false
     }
-
-    // ============================================================================
-    // LAYERED ARCHITECTURE (CRITICAL FIX FOR ERASER)
-    // ============================================================================
-    // Layer Stack (Bottom to Top):
-    // 1. White Surface (The "Paper") - solid white background
-    // 2. Grid Layer - visual guide
-    // 3. Ink Layer (Offscreen) - all drawing strokes with transparency support
-    // ============================================================================
 
     ModalNavigationDrawer(
         drawerState = drawerState,

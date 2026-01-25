@@ -159,7 +159,7 @@ private fun ShapeControls(state: WhiteBoardState, onEvent: (WhiteBoardEvent) -> 
                  var maxX = Float.NEGATIVE_INFINITY
                  var minY = Float.POSITIVE_INFINITY
                  var maxY = Float.NEGATIVE_INFINITY
-                 selectedShape.points.forEach { 
+                 selectedShape.points.forEach {
                      minX = kotlin.math.min(minX, it.x)
                      maxX = kotlin.math.max(maxX, it.x)
                      minY = kotlin.math.min(minY, it.y)

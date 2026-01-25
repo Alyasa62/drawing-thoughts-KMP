@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -45,8 +46,8 @@ fun CompactDock(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50), 
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), 
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
         tonalElevation = 8.dp,
         shadowElevation = 8.dp
     ) {
@@ -62,29 +63,29 @@ fun CompactDock(
                 onClick = { toggleTool(DrawingTool.SELECTOR) }
             )
 
-            // 2. PEN 
-            Box(contentAlignment = Alignment.Center) {
-                 DockIcon(
-                    tool = DrawingTool.PEN,
-                    isSelected = selectedTool == DrawingTool.PEN,
-                    onClick = { toggleTool(DrawingTool.PEN) },
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectVerticalDragGestures { change, dragAmount ->
-                            change.consume()
-                            val delta = -dragAmount / 5f 
-                            onStrokeWidthChange(delta)
-                        }
+            // 2. PEN
+            DockIcon(
+                tool = DrawingTool.PEN,
+                isSelected = selectedTool == DrawingTool.PEN,
+                onClick = { toggleTool(DrawingTool.PEN) },
+                modifier = Modifier.pointerInput(Unit) {
+                    detectVerticalDragGestures { change, dragAmount ->
+                        change.consume()
+                        val delta = -dragAmount / 5f
+                        onStrokeWidthChange(delta)
                     }
-                )
-            }
-             DockIcon(
+                }
+            )
+
+            // 3. HIGHLIGHTER
+            DockIcon(
                 tool = DrawingTool.HIGHLIGHTER,
                 isSelected = selectedTool == DrawingTool.HIGHLIGHTER,
                 onClick = { toggleTool(DrawingTool.HIGHLIGHTER) }
             )
 
-             // 4. ERASER
-             DockIcon(
+            // 4. ERASER
+            DockIcon(
                 tool = DrawingTool.ERASER,
                 isSelected = selectedTool == DrawingTool.ERASER,
                 onClick = { toggleTool(DrawingTool.ERASER) }
@@ -96,7 +97,9 @@ fun CompactDock(
                 isSelected = selectedTool == DrawingTool.TEXT,
                 onClick = { toggleTool(DrawingTool.TEXT) }
             )
-             DockIcon(
+
+            // 6. SHAPES button (shows icon for shape variants)
+            DockIcon(
                 tool = DrawingTool.RECTANGLE_OUTLINED,
                 isSelected = selectedTool.isShape(),
                 onClick = {

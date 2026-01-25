@@ -15,8 +15,6 @@ fun DrawScope.drawSelectionOverlay(
     shape: DrawnShape,
     zoom: Float
 ) {
-    if (shape !is DrawnShape.Geometric && shape !is DrawnShape.FreeHand && shape !is DrawnShape.Text) return
-
     // Calculate Bounds & Center
     val bounds = when (shape) {
         is DrawnShape.Geometric -> {
