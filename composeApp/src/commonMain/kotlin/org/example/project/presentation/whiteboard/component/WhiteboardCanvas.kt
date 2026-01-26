@@ -182,14 +182,12 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
     // 3. Draw
     when (shape) {
         is DrawnShape.FreeHand -> {
-            // Check if this is a single-tap dot (very few points or all points very close together)
-            val isSingleTapDot = if (shape.points.isEmpty()) {
+             val isSingleTapDot = if (shape.points.isEmpty()) {
                 false
             } else if (shape.points.size <= 2) {
                 true // Definitely a tap
             } else {
-                // Check if all points are within 2 pixels of the first point
-                val firstPoint = shape.points[0]
+                 val firstPoint = shape.points[0]
                 shape.points.all { point ->
                     val dx = point.x - firstPoint.x
                     val dy = point.y - firstPoint.y

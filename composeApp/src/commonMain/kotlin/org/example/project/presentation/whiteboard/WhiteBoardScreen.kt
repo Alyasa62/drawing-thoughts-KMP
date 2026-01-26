@@ -107,11 +107,9 @@ fun WhiteBoardScreen(
         onEvent(WhiteBoardEvent.OnViewportChange(viewportState.zoom, viewportState.pan))
     }
 
-    // Use derivedStateOf to prevent unnecessary recompositions
     val zoom by remember { derivedStateOf { viewportState.zoom } }
     val pan by remember { derivedStateOf { viewportState.pan } }
 
-    // Track actual viewport size for minimap
     var actualViewportSize by remember { mutableStateOf(Size(1000f, 1000f)) }
 
     // Interaction Timer (Hoisted)
