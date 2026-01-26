@@ -19,7 +19,6 @@ fun InfiniteGrid(
     spacing: Float = 50f
 ) {
     Canvas(modifier = modifier.fillMaxSize()) {
-        // Don't draw anything if pattern is NONE
         if (pattern == CanvasPattern.NONE) return@Canvas
 
         val density = density
