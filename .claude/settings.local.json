@@ -18,7 +18,16 @@
       "Bash(.gradlew.bat :composeApp:build)",
       "Bash(gradlew.bat :composeApp:build:*)",
       "Bash(cmd /c gradlew.bat :composeApp:build)",
-      "Bash(timeout 180 ./gradlew.bat:*)"
+      "Bash(timeout 180 ./gradlew.bat:*)",
+      "Bash(cmd /c gradlew.bat :composeApp:run)",
+      "Bash(cmd /c \"gradlew.bat :composeApp:compileKotlinJvm\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\Yasa\\\\Desktop\\\\DrawingTHoughts\\\\drawing-thoughts-KMP\\\\composeApp\\\\schemas\")",
+      "Bash(dir:*)",
+      "Bash(gradlew.bat :composeApp:compileKotlinAndroid:*)",
+      "Bash(Select-Object -First 100)",
+      "Bash(cmd.exe:*)",
+      "Bash(gradlew.bat :composeApp:assembleDebug:*)",
+      "Bash(find:*)"
     ]
   }
 }
