@@ -78,4 +78,8 @@ sealed interface WhiteBoardEvent {
     data class OnStyleStudioStrokeWidthChange(val width: Float): WhiteBoardEvent
     data class OnStyleStudioAlphaChange(val alpha: Float): WhiteBoardEvent
     data object OnStyleStudioDismiss: WhiteBoardEvent
+
+    // Image & Crop
+    data class OnAddImage(val bytes: ByteArray): WhiteBoardEvent
+    data object OnToggleCropMode: WhiteBoardEvent
 }

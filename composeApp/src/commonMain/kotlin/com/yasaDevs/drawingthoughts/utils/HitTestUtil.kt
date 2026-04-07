@@ -30,6 +30,15 @@ object HitTestUtil {
             is DrawnShape.Geometric -> isPointInGeometric(shape, point)
             is DrawnShape.FreeHand -> isPointInFreeHand(shape, point)
             is DrawnShape.Text -> isPointInText(shape, point)
+            is DrawnShape.Image -> {
+                val expanded = Rect(
+                    shape.bounds.left - HIT_TOLERANCE,
+                    shape.bounds.top - HIT_TOLERANCE,
+                    shape.bounds.right + HIT_TOLERANCE,
+                    shape.bounds.bottom + HIT_TOLERANCE
+                )
+                expanded.contains(point)
+            }
         }
     }
 
@@ -38,11 +47,7 @@ object HitTestUtil {
         val bounds = GeometryHelper.run { shape.getBounds() }
         return bounds.contains(point)
     }
-
-    /**
-     * Get accurate text bounds using TextMeasurer.
-     * Use this method in Composable context for precise hit testing.
-     */
+    
     fun getTextBounds(shape: DrawnShape.Text, textMeasurer: TextMeasurer): Rect {
         if (shape.text.isEmpty()) {
             // Empty text - return a small clickable area

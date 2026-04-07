@@ -192,6 +192,10 @@ object GeometryHelper {
                     )
                 }
             }
+            is com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Image -> {
+                // Return crop rect if active, otherwise original bounds
+                this.cropRect ?: this.bounds
+            }
         }
     }
 }

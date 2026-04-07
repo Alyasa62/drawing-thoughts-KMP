@@ -53,6 +53,7 @@ fun WhiteboardCanvas(
     viewportState: ViewportState,
     isDragging: Boolean = false,
     dragStartPosition: Offset? = null,
+    isCropModeActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val zoom = viewportState.zoom
@@ -81,7 +82,7 @@ fun WhiteboardCanvas(
             if (shape is DrawnShape.Text) {
                 drawTextShape(shape, isSelected, shapeAlpha, textMeasurer)
             } else {
-                drawSingleShape(shape, isSelected, shapeAlpha)
+                drawSingleShape(shape, isSelected, shapeAlpha, isCropModeActive)
             }
         }
 
@@ -124,13 +125,13 @@ fun WhiteboardCanvas(
             if (it is DrawnShape.Text) {
                 drawTextShape(it, false, 1f, textMeasurer)
             } else {
-                drawSingleShape(it, false, 1f)
+                drawSingleShape(it, false, 1f, isCropModeActive)
             }
         }
     }
 }
 
-private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, baseAlpha: Float = 1f) {
+private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, baseAlpha: Float = 1f, isCropModeActive: Boolean = false) {
     // 1. Determine Properties
     var color = shape.color
     var blendMode = BlendMode.SrcOver
@@ -222,6 +223,27 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
         is DrawnShape.Text -> {
             // Text shapes are not drawn here - they're handled separately by drawTextShape
         }
+        is DrawnShape.Image -> {
+            val validCropRect = shape.cropRect ?: shape.bounds
+            if (shape.bitmap != null) {
+                withTransform({
+                    clipRect(
+                        left = validCropRect.left,
+                        top = validCropRect.top,
+                        right = validCropRect.right,
+                        bottom = validCropRect.bottom
+                    )
+                }) {
+                    drawImage(
+                        image = shape.bitmap,
+                        dstOffset = androidx.compose.ui.unit.IntOffset(shape.bounds.left.toInt(), shape.bounds.top.toInt()),
+                        dstSize = androidx.compose.ui.unit.IntSize(shape.bounds.width.toInt(), shape.bounds.height.toInt()),
+                        alpha = alpha,
+                        blendMode = blendMode
+                    )
+                }
+            }
+        }
         is DrawnShape.Geometric -> {
             // Calculate Bounds
             val left = min(shape.start.x, shape.end.x)
@@ -295,7 +317,7 @@ private fun DrawScope.drawSingleShape(shape: DrawnShape, isSelected: Boolean, ba
     }
 
     if (isSelected && shape.drawingTool != DrawingTool.ERASER) {
-        drawSelectionHighlight(shape)
+        drawSelectionHighlight(shape, isCropModeActive)
     }
 }
 
@@ -408,9 +430,14 @@ private fun DrawScope.drawArrowHead(
     )
 }
 
-private fun DrawScope.drawSelectionHighlight(shape: DrawnShape) {
+private fun DrawScope.drawSelectionHighlight(shape: DrawnShape, isCropModeActive: Boolean = false) {
 
-    val bounds = shape.getBounds()
+    val bounds = if (shape is DrawnShape.Image && isCropModeActive) {
+        shape.cropRect ?: shape.bounds
+    } else {
+        shape.getBounds()
+    }
+    
     val padding = 10f
     val handleRadius = 6f
 
@@ -422,15 +449,17 @@ private fun DrawScope.drawSelectionHighlight(shape: DrawnShape) {
     val rectTopLeft = Offset(rectLeft, rectTop)
     val rectSize = Size(rectRight - rectLeft, rectBottom - rectTop)
 
+    val primaryColor = if (isCropModeActive) Color(0xFF4CAF50) else Color(0xFF18A0FB)
+
     drawRect(
-        color = Color(0xFF18A0FB),
+        color = primaryColor,
         topLeft = rectTopLeft,
         size = rectSize,
         style = Stroke(width = 2f)
     )
 
     val handleColor = Color.White
-    val handleStrokeColor = Color(0xFF18A0FB)
+    val handleStrokeColor = primaryColor
 
     drawCircle(
         color = handleColor,

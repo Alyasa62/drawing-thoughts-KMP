@@ -11,6 +11,7 @@ import com.yasaDevs.drawingthoughts.data.local.entity.ShapeEntity
 import com.yasaDevs.drawingthoughts.domain.model.DrawingTool
 import com.yasaDevs.drawingthoughts.domain.model.DrawnShape
 import com.yasaDevs.drawingthoughts.utils.PathSmoother
+import com.yasaDevs.drawingthoughts.utils.toImageBitmap
 
 class ShapeRepository(private val dao: ShapeDao) {
 
@@ -161,6 +162,25 @@ class ShapeRepository(private val dao: ShapeDao) {
                     fontStyle = if (shape.fontStyle == FontStyle.Italic) 1 else 0
                 )
             }
+            is DrawnShape.Image -> {
+                val colorInt = (shape.color.value shr 32).toInt()
+                ShapeEntity(
+                    id = idLong,
+                    type = shape.drawingTool.name,
+                    color = colorInt,
+                    strokeWidth = shape.strokeWidth,
+                    folderId = shape.folderId,
+                    imageBytes = shape.bytes,
+                    startX = shape.bounds.left,
+                    startY = shape.bounds.top,
+                    endX = shape.bounds.right,
+                    endY = shape.bounds.bottom,
+                    cropRectLeft = shape.cropRect?.left,
+                    cropRectTop = shape.cropRect?.top,
+                    cropRectRight = shape.cropRect?.right,
+                    cropRectBottom = shape.cropRect?.bottom
+                )
+            }
         }
     }
 
@@ -217,6 +237,42 @@ class ShapeRepository(private val dao: ShapeDao) {
                     fontFamily = deserializeFontFamily(entity.fontFamily),
                     fontWeight = FontWeight(entity.fontWeight ?: 400),
                     fontStyle = if (entity.fontStyle == 1) FontStyle.Italic else FontStyle.Normal
+                )
+            }
+            entity.imageBytes != null -> {
+                // Image shape
+                val bounds = androidx.compose.ui.geometry.Rect(
+                    left = entity.startX ?: 0f,
+                    top = entity.startY ?: 0f,
+                    right = entity.endX ?: 0f,
+                    bottom = entity.endY ?: 0f
+                )
+                val cropRect = if (entity.cropRectLeft != null && entity.cropRectTop != null && entity.cropRectRight != null && entity.cropRectBottom != null) {
+                    androidx.compose.ui.geometry.Rect(
+                        left = entity.cropRectLeft,
+                        top = entity.cropRectTop,
+                        right = entity.cropRectRight,
+                        bottom = entity.cropRectBottom
+                    )
+                } else null
+                
+                val bitmap = try {
+                    entity.imageBytes.toImageBitmap()
+                } catch (e: Exception) {
+                    println("Failed to parse image bitmap from bytes.")
+                    null
+                }
+                
+                DrawnShape.Image(
+                    id = idString,
+                    color = color,
+                    strokeWidth = entity.strokeWidth,
+                    drawingTool = tool,
+                    folderId = entity.folderId,
+                    bitmap = bitmap,
+                    bytes = entity.imageBytes,
+                    bounds = bounds,
+                    cropRect = cropRect
                 )
             }
             else -> {

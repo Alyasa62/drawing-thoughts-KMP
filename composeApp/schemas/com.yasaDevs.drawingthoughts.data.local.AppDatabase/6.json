@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "0fcae541c509de9f9ed89e4d7908ab0a",
+    "identityHash": "313dd6cfb8927c02037d4c3849f111dc",
     "entities": [
       {
         "tableName": "ShapeEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `color` INTEGER NOT NULL, `strokeWidth` REAL NOT NULL, `folderId` TEXT, `startX` REAL, `startY` REAL, `endX` REAL, `endY` REAL, `points` TEXT, `text` TEXT, `textX` REAL, `textY` REAL, `fontSize` REAL, `fontFamily` TEXT, `fontWeight` INTEGER, `fontStyle` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `color` INTEGER NOT NULL, `strokeWidth` REAL NOT NULL, `folderId` TEXT, `startX` REAL, `startY` REAL, `endX` REAL, `endY` REAL, `points` TEXT, `text` TEXT, `textX` REAL, `textY` REAL, `fontSize` REAL, `fontFamily` TEXT, `fontWeight` INTEGER, `fontStyle` INTEGER, `imageBytes` BLOB, `cropRectLeft` REAL, `cropRectTop` REAL, `cropRectRight` REAL, `cropRectBottom` REAL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -96,6 +96,31 @@
             "fieldPath": "fontStyle",
             "columnName": "fontStyle",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imageBytes",
+            "columnName": "imageBytes",
+            "affinity": "BLOB"
+          },
+          {
+            "fieldPath": "cropRectLeft",
+            "columnName": "cropRectLeft",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cropRectTop",
+            "columnName": "cropRectTop",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cropRectRight",
+            "columnName": "cropRectRight",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cropRectBottom",
+            "columnName": "cropRectBottom",
+            "affinity": "REAL"
           }
         ],
         "primaryKey": {
@@ -180,7 +205,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0fcae541c509de9f9ed89e4d7908ab0a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '313dd6cfb8927c02037d4c3849f111dc')"
     ]
   }
 }

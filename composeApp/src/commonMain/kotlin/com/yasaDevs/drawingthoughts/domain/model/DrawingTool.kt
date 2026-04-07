@@ -55,7 +55,8 @@ enum class DrawingTool(
     DIAMOND(Res.drawable.ic_diamond),
     ELLIPSE_OUTLINED(Res.drawable.ic_circle_outline),
     ELLIPSE_FILLED(Res.drawable.ic_circle_filled),
-    HAND(Res.drawable.ic_selector_cursor);
+    HAND(Res.drawable.ic_selector_cursor),
+    IMAGE(Res.drawable.ic_selector_cursor);
 
     fun isShape(): Boolean {
         return this == LINE_PLANE || this == LINE_DOTTED ||

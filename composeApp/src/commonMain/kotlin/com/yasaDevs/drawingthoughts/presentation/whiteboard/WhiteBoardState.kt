@@ -64,7 +64,10 @@ data class WhiteBoardState(
     val showGridSettingsDialog: Boolean = false,
 
     // Style Studio Dialog State
-    val showStyleStudioDialog: Boolean = false
+    val showStyleStudioDialog: Boolean = false,
+
+    // Image Crop Mode Current State
+    val isCropModeActive: Boolean = false
 ) {
     /**
      * Get the current tool's color setting

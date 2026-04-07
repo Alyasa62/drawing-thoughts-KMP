@@ -58,6 +58,9 @@ import com.yasaDevs.drawingthoughts.presentation.whiteboard.component.TopBar
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.max
+import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.core.PickerType
+import io.github.vinceglb.filekit.core.PickerMode
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -111,6 +114,19 @@ fun WhiteBoardScreen(
     val pan by remember { derivedStateOf { viewportState.pan } }
 
     var actualViewportSize by remember { mutableStateOf(Size(1000f, 1000f)) }
+
+    val filePickerLauncher = rememberFilePickerLauncher(
+        type = PickerType.Image,
+        mode = PickerMode.Single,
+        title = "Select Image"
+    ) { file ->
+        file?.let {
+            scope.launch {
+                val bytes = it.readBytes()
+                onEvent(WhiteBoardEvent.OnAddImage(bytes))
+            }
+        }
+    }
 
     // Interaction Timer (Hoisted)
     var isInteracting by remember { mutableStateOf(false) }
@@ -320,6 +336,7 @@ fun WhiteBoardScreen(
                     viewportState = viewportState,
                     isDragging = state.isDragging,
                     dragStartPosition = state.dragStartPosition,
+                    isCropModeActive = state.isCropModeActive,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -354,6 +371,7 @@ fun WhiteBoardScreen(
                 onMenuIconClick = {
                     scope.launch { drawerState.open() }
                 },
+                onInsertImageClick = { filePickerLauncher.launch() },
                 onHomeIconClick = { },
                 onUndoIconClick = { onEvent(WhiteBoardEvent.OnUndo) },
                 onRedoIconClick = { onEvent(WhiteBoardEvent.OnRedo) },
@@ -512,6 +530,7 @@ fun WhiteBoardScreen(
                 onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
                 onFontWeightChange = { onEvent(WhiteBoardEvent.OnTextFontWeightChange(it)) },
                 onFontStyleChange = { onEvent(WhiteBoardEvent.OnTextFontStyleChange(it)) },
+                onCropClick = { onEvent(WhiteBoardEvent.OnToggleCropMode) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 90.dp)
@@ -1113,6 +1132,35 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawnShape(
                         textLayoutResult = textLayoutResult,
                         topLeft = shape.position
                     )
+                }
+                is DrawnShape.Image -> {
+                    shape.bitmap?.let { bitmap ->
+                        val dstSize = androidx.compose.ui.unit.IntSize(shape.bounds.width.toInt(), shape.bounds.height.toInt())
+                        val dstOffset = androidx.compose.ui.unit.IntOffset(shape.bounds.left.toInt(), shape.bounds.top.toInt())
+
+                        if (shape.cropRect != null) {
+                            withTransform({
+                                clipRect(
+                                    left = shape.cropRect.left,
+                                    top = shape.cropRect.top,
+                                    right = shape.cropRect.right,
+                                    bottom = shape.cropRect.bottom
+                                )
+                            }) {
+                                drawImage(
+                                    image = bitmap,
+                                    dstOffset = dstOffset,
+                                    dstSize = dstSize
+                                )
+                            }
+                        } else {
+                            drawImage(
+                                image = bitmap,
+                                dstOffset = dstOffset,
+                                dstSize = dstSize
+                            )
+                        }
+                    }
                 }
             }
         }

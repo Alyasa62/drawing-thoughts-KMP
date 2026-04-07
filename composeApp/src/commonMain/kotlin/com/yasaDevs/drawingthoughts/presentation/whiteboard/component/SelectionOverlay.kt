@@ -43,6 +43,9 @@ fun DrawScope.drawSelectionOverlay(
         is DrawnShape.Text -> {
             com.yasaDevs.drawingthoughts.utils.GeometryHelper.run { shape.getBounds() }
         }
+        is DrawnShape.Image -> {
+            shape.bounds
+        }
     }
     
     val width = bounds.width

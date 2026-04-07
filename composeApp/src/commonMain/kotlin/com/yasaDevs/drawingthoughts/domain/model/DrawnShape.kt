@@ -6,6 +6,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ImageBitmap
 
 sealed class DrawnShape {
     abstract val id: String
@@ -47,4 +49,38 @@ sealed class DrawnShape {
         val fontWeight: FontWeight = FontWeight.Normal,
         val fontStyle: FontStyle = FontStyle.Normal
     ) : DrawnShape()
+
+    data class Image(
+        override val id: String,
+        override val color: Color,
+        override val strokeWidth: Float,
+        override val drawingTool: DrawingTool,
+        override val folderId: String? = null,
+        val bitmap: ImageBitmap? = null,
+        val bytes: ByteArray,
+        val bounds: Rect,
+        val cropRect: Rect? = null
+    ) : DrawnShape() {
+        // Automatically generated implementations for equals and hashCode due to ByteArray
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other == null || this::class != other::class) return false
+            other as Image
+            if (id != other.id) return false
+            if (folderId != other.folderId) return false
+            if (bounds != other.bounds) return false
+            if (cropRect != other.cropRect) return false
+            if (!bytes.contentEquals(other.bytes)) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = id.hashCode()
+            result = 31 * result + (folderId?.hashCode() ?: 0)
+            result = 31 * result + bounds.hashCode()
+            result = 31 * result + (cropRect?.hashCode() ?: 0)
+            result = 31 * result + bytes.contentHashCode()
+            return result
+        }
+    }
 }

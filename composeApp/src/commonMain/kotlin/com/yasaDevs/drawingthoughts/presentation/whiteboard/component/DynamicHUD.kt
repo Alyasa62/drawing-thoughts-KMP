@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,7 +41,8 @@ fun DynamicHUD(
     onFontSizeChange: (Float) -> Unit = {},
     onFontFamilyChange: (androidx.compose.ui.text.font.FontFamily) -> Unit = {},
     onFontWeightChange: (androidx.compose.ui.text.font.FontWeight) -> Unit = {},
-    onFontStyleChange: (androidx.compose.ui.text.font.FontStyle) -> Unit = {}
+    onFontStyleChange: (androidx.compose.ui.text.font.FontStyle) -> Unit = {},
+    onCropClick: () -> Unit = {}
 ) {
     // Determine which HUD to show based on current tool
     val showDrawingHud = when (state.selectedTool) {
@@ -193,12 +195,27 @@ fun DynamicHUD(
 
 
                 if (showSelectorHud) {
+                    val selectedShape = state.shapes.find { it.id == state.selectedShapeId }
+                    val isImage = selectedShape?.drawingTool == DrawingTool.IMAGE || selectedShape is com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Image
+                    
                     Text(
                         text = "Selected",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+
+                    if (isImage) {
+                        val cropTint = if (state.isCropModeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Filled.Edit, // Using Edit icon as a placeholder for Crop
+                            contentDescription = "Crop",
+                            tint = cropTint,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable { onCropClick() }
+                        )
+                    }
 
                     // Delete Action
                     Icon(

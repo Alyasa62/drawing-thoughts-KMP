@@ -237,6 +237,27 @@ private fun DrawScope.drawMinimapShape(
                 alpha = alpha
             )
         }
+        is DrawnShape.Image -> {
+            val scaledX = shape.bounds.left * scaleX
+            val scaledY = shape.bounds.top * scaleY
+            val scaledW = shape.bounds.width * scaleX
+            val scaledH = shape.bounds.height * scaleY
+            
+            drawRect(
+                color = Color.LightGray,
+                topLeft = Offset(scaledX, scaledY),
+                size = Size(scaledW, scaledH),
+                alpha = alpha
+            )
+            // Draw a tiny border to indicate it's an image block
+            drawRect(
+                color = Color.Gray,
+                topLeft = Offset(scaledX, scaledY),
+                size = Size(scaledW, scaledH),
+                style = Stroke(width = max(1f, minimapScale)),
+                alpha = alpha
+            )
+        }
         is DrawnShape.Geometric -> {
             // Scale start and end points
             val scaledStart = Offset(shape.start.x * scaleX, shape.start.y * scaleY)

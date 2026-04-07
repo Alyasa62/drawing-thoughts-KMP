@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -44,6 +45,7 @@ fun TopBar(
     onCanvasSetupClick: () -> Unit,
     onResetViewClick: () -> Unit,
     onExportClick: () -> Unit,
+    onInsertImageClick: () -> Unit,
     onGridSettingsClick: () -> Unit = {}
 ) {
     var isMoreOptionMenuOpened by rememberSaveable {
@@ -78,6 +80,13 @@ fun TopBar(
             Icon(
                 painter = painterResource(Res.drawable.ic_redo),
                 contentDescription = "Redo",
+                modifier = Modifier.size(25.dp)
+            )
+        }
+        FilledIconButton(onClick = { onInsertImageClick() }) {
+            Icon(
+                imageVector = Icons.Filled.Image,
+                contentDescription = "Insert Image",
                 modifier = Modifier.size(25.dp)
             )
         }

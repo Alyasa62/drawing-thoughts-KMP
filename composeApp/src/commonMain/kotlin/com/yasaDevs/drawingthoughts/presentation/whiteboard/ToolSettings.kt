@@ -91,7 +91,8 @@ object ToolSettingsDefaults {
 
             // Non-drawing tools
             DrawingTool.SELECTOR,
-            DrawingTool.HAND -> ToolSettings(
+            DrawingTool.HAND,
+            DrawingTool.IMAGE -> ToolSettings(
                 color = Color.Black,
                 strokeWidth = 5f
             )

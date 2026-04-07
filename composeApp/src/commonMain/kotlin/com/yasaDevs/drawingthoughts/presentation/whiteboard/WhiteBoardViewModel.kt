@@ -14,6 +14,7 @@ import com.yasaDevs.drawingthoughts.domain.model.DrawingTool
 import com.yasaDevs.drawingthoughts.domain.model.DrawnShape
 import com.yasaDevs.drawingthoughts.utils.GeometryHelper.getBounds
 import com.yasaDevs.drawingthoughts.utils.PathSmoother
+import com.yasaDevs.drawingthoughts.utils.toImageBitmap
 import kotlin.math.max
 import kotlin.math.min
 
@@ -116,6 +117,7 @@ class WhiteBoardViewModel : ViewModel() {
                              }
                              is DrawnShape.FreeHand -> shape.points.size > 2
                              is DrawnShape.Text -> shape.text.isNotBlank()
+                             is DrawnShape.Image -> true
                         }
                         !isEraser && !isInvisibleColor && isValidSize
                     }
@@ -587,6 +589,49 @@ class WhiteBoardViewModel : ViewModel() {
                 _state.update { it.copy(showStyleStudioDialog = false) }
             }
 
+            // Image & Crop
+            is WhiteBoardEvent.OnAddImage -> {
+                val bytes = event.bytes
+                try {
+                    val bitmap = bytes.toImageBitmap()
+                    val zoom = _state.value.zoom
+                    val pan = _state.value.pan
+                    
+                    // Simple center assuming generic viewport size
+                    val startX = (-pan.x / zoom) + 100f
+                    val startY = (-pan.y / zoom) + 100f
+                    
+                    // Cap image display size to prevent massive initial bounds
+                    var imgWidth = bitmap.width.toFloat()
+                    var imgHeight = bitmap.height.toFloat()
+                    if (imgWidth > 1000f || imgHeight > 1000f) {
+                        val scale = 1000f / kotlin.math.max(imgWidth, imgHeight)
+                        imgWidth *= scale
+                        imgHeight *= scale
+                    }
+
+                    val imageShape = DrawnShape.Image(
+                        id = "img_${kotlin.random.Random.nextInt()}",
+                        color = Color.Transparent,
+                        strokeWidth = 0f,
+                        drawingTool = DrawingTool.IMAGE,
+                        folderId = _state.value.selectedFolderId,
+                        bitmap = bitmap,
+                        bytes = bytes,
+                        bounds = androidx.compose.ui.geometry.Rect(startX, startY, startX + imgWidth, startY + imgHeight)
+                    )
+                    
+                    addToHistory(_state.value.shapes)
+                    _state.update { it.copy(shapes = it.shapes + imageShape) }
+                    redoStack.clear()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            WhiteBoardEvent.OnToggleCropMode -> {
+                _state.update { it.copy(isCropModeActive = !it.isCropModeActive) }
+            }
+
         }
     }
 
@@ -664,6 +709,12 @@ class WhiteBoardViewModel : ViewModel() {
                     is DrawnShape.Text -> {
                         shape.copy(
                             position = shape.position.copy(x = shape.position.x + deltaX, y = shape.position.y + deltaY)
+                        )
+                    }
+                    is DrawnShape.Image -> {
+                        shape.copy(
+                            bounds = shape.bounds.translate(deltaX, deltaY),
+                            cropRect = shape.cropRect?.translate(deltaX, deltaY)
                         )
                     }
                 }
@@ -824,6 +875,36 @@ class WhiteBoardViewModel : ViewModel() {
                             fontSize = shape.fontSize * scale
                         )
                     }
+                    is DrawnShape.Image -> {
+                        val centerX = shape.bounds.center.x
+                        val centerY = shape.bounds.center.y
+                        
+                        val width = shape.bounds.width * scale
+                        val height = shape.bounds.height * scale
+                        
+                        val newCenterX = centerX + offset.x
+                        val newCenterY = centerY + offset.y
+                        
+                        val newBounds = androidx.compose.ui.geometry.Rect(
+                            newCenterX - width / 2, newCenterY - height / 2,
+                            newCenterX + width / 2, newCenterY + height / 2
+                        )
+                        
+                        val newCropRect = shape.cropRect?.let { crop ->
+                            val cropCenterX = crop.center.x
+                            val cropCenterY = crop.center.y
+                            val cropWidth = crop.width * scale
+                            val cropHeight = crop.height * scale
+                            val relCropX = (cropCenterX - centerX) * scale
+                            val relCropY = (cropCenterY - centerY) * scale
+                            androidx.compose.ui.geometry.Rect(
+                                newCenterX + relCropX - cropWidth / 2, newCenterY + relCropY - cropHeight / 2,
+                                newCenterX + relCropX + cropWidth / 2, newCenterY + relCropY + cropHeight / 2
+                            )
+                        }
+                        
+                        shape.copy(bounds = newBounds, cropRect = newCropRect)
+                    }
                 }
             } else {
                 shape
@@ -920,6 +1001,67 @@ class WhiteBoardViewModel : ViewModel() {
                     }
                     is DrawnShape.FreeHand -> current // No resizing for Freehand yet
                     is DrawnShape.Text -> current // No resizing for Text yet
+                    is DrawnShape.Image -> {
+                        val activeRect = if (state.value.isCropModeActive) {
+                            current.cropRect ?: current.bounds
+                        } else {
+                            current.bounds
+                        }
+                        
+                        var newLeft = activeRect.left
+                        var newTop = activeRect.top
+                        var newRight = activeRect.right
+                        var newBottom = activeRect.bottom
+                        
+                        when (handle) {
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.RIGHT, 
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.TOP_RIGHT, 
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.BOTTOM_RIGHT -> {
+                                newRight += worldDelta.x
+                            }
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.LEFT,
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.TOP_LEFT,
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.BOTTOM_LEFT -> {
+                                newLeft += worldDelta.x
+                            }
+                            else -> {}
+                        }
+                        
+                        when (handle) {
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.BOTTOM, 
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.BOTTOM_LEFT, 
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.BOTTOM_RIGHT -> {
+                                newBottom += worldDelta.y
+                            }
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.TOP,
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.TOP_LEFT,
+                            com.yasaDevs.drawingthoughts.utils.TransformHandle.TOP_RIGHT -> {
+                                newTop += worldDelta.y
+                            }
+                            else -> {}
+                        }
+                        
+                        val newRect = androidx.compose.ui.geometry.Rect(newLeft, newTop, newRight, newBottom)
+                        if (state.value.isCropModeActive) {
+                            current.copy(cropRect = newRect)
+                        } else {
+                            // When resizing bounds directly, proportionally scale the cropRect map? 
+                            // Simplified: Keep cropRect relative to bounds, or just drop cropRect if resizing bounds. 
+                            // For Figma-style, resizing an image frame resizes the bounds but keeps the image content anchored or stretches it.
+                            // If we stretch it, we stretch the cropRect accordingly.
+                            val scaleX = newRect.width / current.bounds.width
+                            val scaleY = newRect.height / current.bounds.height
+                            
+                            val newCropRect = current.cropRect?.let { crop ->
+                                val cx = newLeft + (crop.left - current.bounds.left) * scaleX
+                                val cy = newTop + (crop.top - current.bounds.top) * scaleY
+                                val cw = crop.width * scaleX
+                                val ch = crop.height * scaleY
+                                androidx.compose.ui.geometry.Rect(cx, cy, cx + cw, cy + ch)
+                            }
+                            current.copy(bounds = newRect, cropRect = newCropRect)
+                        }
+                    }
                 }
             } else {
                 current

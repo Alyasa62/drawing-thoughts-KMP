@@ -171,6 +171,9 @@ private fun ShapeControls(state: WhiteBoardState, onEvent: (WhiteBoardEvent) -> 
         is com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Text -> {
             com.yasaDevs.drawingthoughts.utils.GeometryHelper.run { selectedShape.getBounds() }
         }
+        is com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Image -> {
+            selectedShape.bounds
+        }
     }
 
     InspectorSection(title = "Transform") {
