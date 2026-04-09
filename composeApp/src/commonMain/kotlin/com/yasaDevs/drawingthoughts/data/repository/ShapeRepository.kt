@@ -109,6 +109,17 @@ class ShapeRepository(private val dao: ShapeDao) {
         dao.deleteShapesByFolder(folderId)
     }
 
+    suspend fun cleanupImageIfOrphaned(fileName: String) {
+        val count = dao.countShapesWithFileName(fileName)
+        println("ShapeRepository: Checking if image is orphaned: $fileName, usage count=$count")
+        if (count == 0) {
+            println("ShapeRepository: Image is orphaned. Deleting $fileName")
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.yasaDevs.drawingthoughts.utils.LocalFileStorage.deleteImage(fileName)
+            }
+        }
+    }
+
     private fun mapToEntity(shape: DrawnShape): ShapeEntity {
         val idLong = shape.id.toLongOrNull() ?: 0L
 

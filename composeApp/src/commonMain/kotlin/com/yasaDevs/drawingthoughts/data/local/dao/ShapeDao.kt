@@ -28,4 +28,7 @@ interface ShapeDao {
 
     @Query("DELETE FROM ShapeEntity WHERE folderId IS NULL")
     suspend fun deleteShapesWithoutFolder()
+
+    @Query("SELECT COUNT(*) FROM ShapeEntity WHERE fileName = :fileName")
+    suspend fun countShapesWithFileName(fileName: String): Int
 }

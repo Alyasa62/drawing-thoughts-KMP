@@ -16,4 +16,15 @@ actual object LocalFileStorage {
         val file = File(context.filesDir, fileName)
         return if (file.exists()) file.readBytes() else null
     }
+
+    actual fun deleteImage(fileName: String): Boolean {
+        return try {
+            val context = AndroidWrappedContext.context ?: return false
+            val file = File(context.filesDir, fileName)
+            if (file.exists()) file.delete() else false
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

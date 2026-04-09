@@ -670,6 +670,8 @@ class WhiteBoardViewModel : ViewModel() {
         // Only clear if there are shapes to clear
         if (currentShapes.isEmpty()) return
 
+        val removedImages = currentShapes.filterIsInstance<DrawnShape.Image>()
+
         // Save current state to undo stack BEFORE clearing
         addToHistory(currentShapes)
 
@@ -684,6 +686,15 @@ class WhiteBoardViewModel : ViewModel() {
 
         // Clear redo stack (new action invalidates redo)
         redoStack.clear()
+        
+        if (removedImages.isNotEmpty()) {
+            viewModelScope.launch {
+                repository.saveShapesForFolder(emptyList(), state.value.selectedFolderId)
+                removedImages.forEach { image ->
+                    repository.cleanupImageIfOrphaned(image.fileName)
+                }
+            }
+        }
     }
 
     private fun updateSelectedShapePosition(currentOffset: Offset) {
@@ -809,11 +820,23 @@ class WhiteBoardViewModel : ViewModel() {
 
         if (remaining.size == currentShapes.size) return // Nothing hit
 
+        val removedShapes = currentShapes.filter { !remaining.contains(it) }
+
         // Snapshot for undo BEFORE mutating.
         addToHistory(currentShapes)
         redoStack.clear()
 
         _state.update { it.copy(shapes = remaining, selectedShapeId = null) }
+        
+        val removedImages = removedShapes.filterIsInstance<DrawnShape.Image>()
+        if (removedImages.isNotEmpty()) {
+            viewModelScope.launch {
+                repository.saveShapesForFolder(remaining, state.value.selectedFolderId)
+                removedImages.forEach { image ->
+                    repository.cleanupImageIfOrphaned(image.fileName)
+                }
+            }
+        }
     }
 
     private fun applyTransientTransform() {
@@ -937,6 +960,7 @@ class WhiteBoardViewModel : ViewModel() {
     private fun deleteSelectedShape() {
         val selectedId = state.value.selectedShapeId ?: return
         val currentShapes = state.value.shapes
+        val deletedShape = currentShapes.find { it.id == selectedId }
         
         addToHistory(currentShapes) // Save state before delete
         
@@ -950,6 +974,13 @@ class WhiteBoardViewModel : ViewModel() {
             ) 
         }
         redoStack.clear()
+        
+        if (deletedShape is DrawnShape.Image) {
+            viewModelScope.launch {
+                repository.saveShapesForFolder(newShapes, state.value.selectedFolderId)
+                repository.cleanupImageIfOrphaned(deletedShape.fileName)
+            }
+        }
     }
 
     private fun resizeSelectedShape(handle: com.yasaDevs.drawingthoughts.utils.TransformHandle, worldDelta: Offset) {
@@ -1206,8 +1237,15 @@ class WhiteBoardViewModel : ViewModel() {
     private fun handleDeleteFolder(folder: com.yasaDevs.drawingthoughts.domain.model.Folder) {
         viewModelScope.launch {
             try {
+                val shapesInFolder = repository.getShapesByFolder(folder.id)
+                val imagesToDelete = shapesInFolder.filterIsInstance<DrawnShape.Image>()
+
                 // Delete all shapes in this folder
                 repository.deleteShapesByFolder(folder.id)
+                
+                imagesToDelete.forEach { image ->
+                    repository.cleanupImageIfOrphaned(image.fileName)
+                }
 
                 // Delete the folder itself
                 folderRepository.deleteFolder(folder)

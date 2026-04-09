@@ -18,4 +18,15 @@ actual object LocalFileStorage {
         val file = File(appDir, fileName)
         return if (file.exists()) file.readBytes() else null
     }
+
+    actual fun deleteImage(fileName: String): Boolean {
+        return try {
+            val appDir = File(System.getProperty("user.home"), ".drawingthoughts")
+            val file = File(appDir, fileName)
+            if (file.exists()) file.delete() else false
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
