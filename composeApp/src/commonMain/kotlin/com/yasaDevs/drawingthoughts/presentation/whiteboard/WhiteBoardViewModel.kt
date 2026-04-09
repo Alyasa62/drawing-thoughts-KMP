@@ -108,7 +108,7 @@ class WhiteBoardViewModel : ViewModel() {
                 if (tool == DrawingTool.SELECTOR) {
                     val visibleShapes = _state.value.shapes.filter { shape ->
                         val isEraser = shape.drawingTool == DrawingTool.ERASER
-                        val isInvisibleColor = shape.color == _state.value.canvasBackgroundColor || shape.color == Color.Transparent
+                        val isInvisibleColor = shape !is DrawnShape.Image && (shape.color == _state.value.canvasBackgroundColor || shape.color == Color.Transparent)
                         val isValidSize = when(shape) {
                              is DrawnShape.Geometric -> {
                                  val w = kotlin.math.abs(shape.start.x - shape.end.x)
