@@ -170,7 +170,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     color = colorInt,
                     strokeWidth = shape.strokeWidth,
                     folderId = shape.folderId,
-                    imageBytes = shape.bytes,
+                    fileName = shape.fileName,
                     startX = shape.bounds.left,
                     startY = shape.bounds.top,
                     endX = shape.bounds.right,
@@ -239,7 +239,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     fontStyle = if (entity.fontStyle == 1) FontStyle.Italic else FontStyle.Normal
                 )
             }
-            entity.imageBytes != null -> {
+            entity.fileName != null -> {
                 // Image shape
                 val bounds = androidx.compose.ui.geometry.Rect(
                     left = entity.startX ?: 0f,
@@ -256,8 +256,11 @@ class ShapeRepository(private val dao: ShapeDao) {
                     )
                 } else null
                 
+                val fileName = entity.fileName
+                val bytes = com.yasaDevs.drawingthoughts.utils.LocalFileStorage.loadImage(fileName)
+                
                 val bitmap = try {
-                    entity.imageBytes.toImageBitmap()
+                    bytes?.toImageBitmap()
                 } catch (e: Exception) {
                     println("Failed to parse image bitmap from bytes.")
                     null
@@ -270,7 +273,7 @@ class ShapeRepository(private val dao: ShapeDao) {
                     drawingTool = tool,
                     folderId = entity.folderId,
                     bitmap = bitmap,
-                    bytes = entity.imageBytes,
+                    fileName = fileName,
                     bounds = bounds,
                     cropRect = cropRect
                 )

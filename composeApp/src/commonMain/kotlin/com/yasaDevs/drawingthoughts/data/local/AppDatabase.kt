@@ -11,7 +11,7 @@ import com.yasaDevs.drawingthoughts.data.local.entity.CanvasSettingsEntity
 import com.yasaDevs.drawingthoughts.data.local.entity.FolderEntity
 import com.yasaDevs.drawingthoughts.data.local.entity.ShapeEntity
 
-@Database(entities = [ShapeEntity::class, FolderEntity::class, CanvasSettingsEntity::class], version = 6)
+@Database(entities = [ShapeEntity::class, FolderEntity::class, CanvasSettingsEntity::class], version = 7)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun shapeDao(): ShapeDao

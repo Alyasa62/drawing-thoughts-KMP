@@ -26,7 +26,7 @@ data class ShapeEntity(
     val fontWeight: Int? = null, // FontWeight.weight value
     val fontStyle: Int? = null, // 0 = Normal, 1 = Italic
     // Image
-    val imageBytes: ByteArray? = null,
+    val fileName: String? = null,
     val cropRectLeft: Float? = null,
     val cropRectTop: Float? = null,
     val cropRectRight: Float? = null,

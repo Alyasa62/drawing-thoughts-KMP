@@ -57,11 +57,10 @@ sealed class DrawnShape {
         override val drawingTool: DrawingTool,
         override val folderId: String? = null,
         val bitmap: ImageBitmap? = null,
-        val bytes: ByteArray,
+        val fileName: String,
         val bounds: Rect,
         val cropRect: Rect? = null
     ) : DrawnShape() {
-        // Automatically generated implementations for equals and hashCode due to ByteArray
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other == null || this::class != other::class) return false
@@ -70,7 +69,7 @@ sealed class DrawnShape {
             if (folderId != other.folderId) return false
             if (bounds != other.bounds) return false
             if (cropRect != other.cropRect) return false
-            if (!bytes.contentEquals(other.bytes)) return false
+            if (fileName != other.fileName) return false
             return true
         }
 
@@ -79,7 +78,7 @@ sealed class DrawnShape {
             result = 31 * result + (folderId?.hashCode() ?: 0)
             result = 31 * result + bounds.hashCode()
             result = 31 * result + (cropRect?.hashCode() ?: 0)
-            result = 31 * result + bytes.contentHashCode()
+            result = 31 * result + fileName.hashCode()
             return result
         }
     }

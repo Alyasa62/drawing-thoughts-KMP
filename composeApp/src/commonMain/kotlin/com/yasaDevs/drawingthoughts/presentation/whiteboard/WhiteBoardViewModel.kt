@@ -610,14 +610,20 @@ class WhiteBoardViewModel : ViewModel() {
                         imgHeight *= scale
                     }
 
+                    val imageId = "img_${kotlin.math.abs(kotlin.random.Random.nextInt())}"
+                    val fileName = "${imageId}_${kotlin.math.abs(kotlin.random.Random.nextLong())}.png"
+                    
+                    // Save to local storage
+                    com.yasaDevs.drawingthoughts.utils.LocalFileStorage.saveImage(bytes, fileName)
+
                     val imageShape = DrawnShape.Image(
-                        id = "img_${kotlin.random.Random.nextInt()}",
+                        id = imageId,
                         color = Color.Transparent,
                         strokeWidth = 0f,
                         drawingTool = DrawingTool.IMAGE,
                         folderId = _state.value.selectedFolderId,
                         bitmap = bitmap,
-                        bytes = bytes,
+                        fileName = fileName,
                         bounds = androidx.compose.ui.geometry.Rect(startX, startY, startX + imgWidth, startY + imgHeight)
                     )
                     
