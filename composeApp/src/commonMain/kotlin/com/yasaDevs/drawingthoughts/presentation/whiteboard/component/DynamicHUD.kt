@@ -57,7 +57,7 @@ fun DynamicHUD(
     val showTextHud = state.selectedTool == DrawingTool.TEXT && !state.isTextEditing
 
     // Text Tool HUD — only shown while the user has TEXT selected but is NOT actively editing.
-    // While editing, the KeyboardAttachedToolbar (IME-anchored) takes over exclusively.
+    // While editing, the unified TextEditingLayer (scrim + panel) takes over exclusively.
     if (showTextHud) {
         TextToolHUD(
             state = state,
