@@ -163,31 +163,37 @@ object GeometryHelper {
                 androidx.compose.ui.geometry.Rect(minX, minY, maxX, maxY)
             }
             is com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Text -> {
-                // Use actual text measurement for accurate bounds
-                // This requires TextMeasurer which is only available in Composable context
-                // For now, we provide a reasonable estimate that's better than character counting
-                // The actual precise measurement should be done in the UI layer
-
+                // NOTE: For pixel-perfect hit-testing use HitTestUtil.isPointInTextAccurate() in
+                // Composable context. This estimate is used for handle drawing and non-composable paths.
                 if (this.text.isEmpty()) {
-                    // Empty text - return a small clickable area
-                    androidx.compose.ui.geometry.Rect(
+                    return androidx.compose.ui.geometry.Rect(
                         left = this.position.x,
                         top = this.position.y,
-                        right = this.position.x + this.fontSize * 2f, // Minimum clickable width
+                        right = this.position.x + this.fontSize * 3f,
                         bottom = this.position.y + this.fontSize * 1.5f
                     )
-                } else {
-                    // Improved estimate using average character width
-                    // Most fonts have average char width ≈ 0.5-0.6 * fontSize
-                    val avgCharWidth = this.fontSize * 0.55f
-                    val estimatedWidth = this.text.length * avgCharWidth
-                    // Line height is typically 1.2-1.5 * fontSize
-                    val lineHeight = this.fontSize * 1.5f
+                }
 
+                val avgCharWidth = this.fontSize * 0.55f
+                val estimatedTextWidth = this.text.length * avgCharWidth
+                val lineHeight = this.fontSize * 1.5f
+
+                if (this.boxWidth != null && this.boxWidth > 0f) {
+                    // Multi-line: estimate number of lines and use boxWidth for rect width
+                    val charsPerLine = (this.boxWidth / avgCharWidth).coerceAtLeast(1f)
+                    val lineCount = kotlin.math.ceil(this.text.length / charsPerLine.toDouble()).toInt().coerceAtLeast(1)
                     androidx.compose.ui.geometry.Rect(
                         left = this.position.x,
                         top = this.position.y,
-                        right = this.position.x + estimatedWidth,
+                        right = this.position.x + this.boxWidth,
+                        bottom = this.position.y + lineCount * lineHeight
+                    )
+                } else {
+                    // Single-line (legacy / unconstrained)
+                    androidx.compose.ui.geometry.Rect(
+                        left = this.position.x,
+                        top = this.position.y,
+                        right = this.position.x + estimatedTextWidth,
                         bottom = this.position.y + lineHeight
                     )
                 }

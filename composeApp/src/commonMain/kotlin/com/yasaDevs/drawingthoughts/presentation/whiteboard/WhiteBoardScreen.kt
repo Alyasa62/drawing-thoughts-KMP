@@ -260,10 +260,14 @@ fun WhiteBoardScreen(
                         },
                         onDoubleTap = { offset ->
                             // UNIVERSAL: Double-tap to edit text works with ANY tool
-                            // This provides industry-standard UX (Figma/Canva behavior)
+                            // Pillar 1: Use accurate TextMeasurer-based hit testing
                             val worldPoint = viewportState.screenToWorld(offset)
                             val textShapes = state.shapes.filterIsInstance<DrawnShape.Text>()
-                            val tappedText = com.yasaDevs.drawingthoughts.utils.HitTestUtil.getShapeAt(textShapes, worldPoint) as? DrawnShape.Text
+                            val tappedText = textShapes.asReversed().firstOrNull { textShape ->
+                                com.yasaDevs.drawingthoughts.utils.HitTestUtil.isPointInTextAccurate(
+                                    textShape, worldPoint, textMeasurer
+                                )
+                            }
                             if (tappedText != null) {
                                 onEvent(WhiteBoardEvent.OnTextEdit(tappedText.id))
                             }
@@ -322,13 +326,30 @@ fun WhiteBoardScreen(
                                         )
                                     )
                                 } else {
-                                    // Resize
-                                    onEvent(
-                                        WhiteBoardEvent.OnResizeShape(
-                                            checkHandle,
-                                            worldDragAmount
+                                    // Pillar 2: LEFT/RIGHT handle on a Text shape → change boxWidth, not resize
+                                    val selectedShape = state.shapes.find { it.id == state.selectedShapeId }
+                                    val isTextBoxResize = selectedShape is DrawnShape.Text &&
+                                        (checkHandle == com.yasaDevs.drawingthoughts.utils.TransformHandle.LEFT ||
+                                         checkHandle == com.yasaDevs.drawingthoughts.utils.TransformHandle.RIGHT)
+
+                                    if (isTextBoxResize && selectedShape is DrawnShape.Text) {
+                                        val currentBox = selectedShape.boxWidth
+                                            ?: (com.yasaDevs.drawingthoughts.utils.GeometryHelper.run { selectedShape.getBounds() }).width
+                                        val delta = if (checkHandle == com.yasaDevs.drawingthoughts.utils.TransformHandle.RIGHT)
+                                            worldDragAmount.x else -worldDragAmount.x
+                                        onEvent(WhiteBoardEvent.OnTextBoxWidthChange(
+                                            shapeId = selectedShape.id,
+                                            newWidth = (currentBox + delta).coerceAtLeast(selectedShape.fontSize * 2f)
+                                        ))
+                                    } else {
+                                        // Generic resize for all other shapes/handles
+                                        onEvent(
+                                            WhiteBoardEvent.OnResizeShape(
+                                                checkHandle,
+                                                worldDragAmount
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             },
                             onDragEnd = {
@@ -583,12 +604,18 @@ fun WhiteBoardScreen(
 
                 if (textShape != null) {
                     com.yasaDevs.drawingthoughts.presentation.whiteboard.component.TextEditingLayer(
+                        state = state,
                         text = state.currentTextContent,
                         shape = textShape,
                         zoom = zoom,
                         pan = pan,
                         color = textColor,
                         onTextChange = { onEvent(WhiteBoardEvent.OnTextChange(it)) },
+                        onColorClick = { onEvent(WhiteBoardEvent.OnStyleStudioRequest) },
+                        onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
+                        onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
+                        onFontWeightChange = { onEvent(WhiteBoardEvent.OnTextFontWeightChange(it)) },
+                        onFontStyleChange = { onEvent(WhiteBoardEvent.OnTextFontStyleChange(it)) },
                         onDismiss = {
                             if (state.currentTextContent.isNotBlank()) {
                                 onEvent(WhiteBoardEvent.OnTextCommit)
@@ -599,30 +626,8 @@ fun WhiteBoardScreen(
                         modifier = Modifier.zIndex(20f)
                     )
                 }
-
-                // Keyboard-attached toolbar (appears above keyboard)
-                // Uses UNIFIED bar - exact same UI as TextToolHUD
-                com.yasaDevs.drawingthoughts.presentation.whiteboard.component.KeyboardAttachedToolbar(
-                    state = state,
-                    visible = state.isTextEditing,
-                    onColorClick = { onEvent(WhiteBoardEvent.OnStyleStudioRequest) },
-                    onFontSizeChange = { onEvent(WhiteBoardEvent.OnTextFontSizeChange(it)) },
-                    onFontFamilyChange = { onEvent(WhiteBoardEvent.OnTextFontFamilyChange(it)) },
-                    onFontWeightChange = { onEvent(WhiteBoardEvent.OnTextFontWeightChange(it)) },
-                    onFontStyleChange = { onEvent(WhiteBoardEvent.OnTextFontStyleChange(it)) },
-                    onDoneClick = {
-                        // Save and commit the text
-                        if (state.currentTextContent.isNotBlank()) {
-                            onEvent(WhiteBoardEvent.OnTextCommit)
-                        } else {
-                            onEvent(WhiteBoardEvent.OnTextCancel)
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .zIndex(21f)
-                )
             }
+
 
             // --- POPUPS (Slider) ---
             if (showStrokeSlider) {

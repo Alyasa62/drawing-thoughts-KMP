@@ -170,7 +170,8 @@ class ShapeRepository(private val dao: ShapeDao) {
                     fontSize = shape.fontSize,
                     fontFamily = serializeFontFamily(shape.fontFamily),
                     fontWeight = shape.fontWeight.weight,
-                    fontStyle = if (shape.fontStyle == FontStyle.Italic) 1 else 0
+                    fontStyle = if (shape.fontStyle == FontStyle.Italic) 1 else 0,
+                    textBoxWidth = shape.boxWidth
                 )
             }
             is DrawnShape.Image -> {
@@ -247,7 +248,8 @@ class ShapeRepository(private val dao: ShapeDao) {
                     fontSize = entity.fontSize ?: 24f,
                     fontFamily = deserializeFontFamily(entity.fontFamily),
                     fontWeight = FontWeight(entity.fontWeight ?: 400),
-                    fontStyle = if (entity.fontStyle == 1) FontStyle.Italic else FontStyle.Normal
+                    fontStyle = if (entity.fontStyle == 1) FontStyle.Italic else FontStyle.Normal,
+                    boxWidth = entity.textBoxWidth
                 )
             }
             entity.fileName != null -> {

@@ -613,16 +613,27 @@ private fun DrawScope.drawTextShape(
     baseAlpha: Float,
     textMeasurer: androidx.compose.ui.text.TextMeasurer
 ) {
-    val textLayoutResult = textMeasurer.measure(
-        text = shape.text,
-        style = TextStyle(
-            color = shape.color.copy(alpha = baseAlpha),
-            fontSize = shape.fontSize.sp,
-            fontFamily = shape.fontFamily,
-            fontWeight = shape.fontWeight,
-            fontStyle = shape.fontStyle
-        )
+    val textStyle = TextStyle(
+        color = shape.color.copy(alpha = baseAlpha),
+        fontSize = shape.fontSize.sp,
+        fontFamily = shape.fontFamily,
+        fontWeight = shape.fontWeight,
+        fontStyle = shape.fontStyle
     )
+
+    // Pillar 2: wrap text inside boxWidth when set
+    val textLayoutResult = if (shape.boxWidth != null && shape.boxWidth > 0f) {
+        textMeasurer.measure(
+            text = shape.text,
+            style = textStyle,
+            constraints = androidx.compose.ui.unit.Constraints(
+                maxWidth = shape.boxWidth.toInt()
+            ),
+            softWrap = true
+        )
+    } else {
+        textMeasurer.measure(text = shape.text, style = textStyle)
+    }
 
     drawText(
         textLayoutResult = textLayoutResult,
@@ -640,3 +651,4 @@ private fun DrawScope.drawTextShape(
         )
     }
 }
+

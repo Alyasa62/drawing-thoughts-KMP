@@ -25,6 +25,7 @@ data class ShapeEntity(
     val fontFamily: String? = null, // Serialized font family name
     val fontWeight: Int? = null, // FontWeight.weight value
     val fontStyle: Int? = null, // 0 = Normal, 1 = Italic
+    val textBoxWidth: Float? = null, // null = unconstrained (single-line legacy)
     // Image
     val fileName: String? = null,
     val cropRectLeft: Float? = null,

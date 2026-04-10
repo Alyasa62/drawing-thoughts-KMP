@@ -47,7 +47,9 @@ sealed class DrawnShape {
         val fontSize: Float = 24f,
         val fontFamily: FontFamily = FontFamily.Default,
         val fontWeight: FontWeight = FontWeight.Normal,
-        val fontStyle: FontStyle = FontStyle.Normal
+        val fontStyle: FontStyle = FontStyle.Normal,
+        // Pillar 2: When set, text wraps at this world-pixel width; null = single-line (legacy behavior)
+        val boxWidth: Float? = null
     ) : DrawnShape()
 
     data class Image(

@@ -481,6 +481,19 @@ class WhiteBoardViewModel : ViewModel() {
                     )
                 }
             }
+            // Pillar 2: User dragged a LEFT/RIGHT handle on a text shape → update wrap width
+            is WhiteBoardEvent.OnTextBoxWidthChange -> {
+                addToHistory(_state.value.shapes)
+                _state.update { current ->
+                    val updatedShapes = current.shapes.map { shape ->
+                        if (shape.id == event.shapeId && shape is DrawnShape.Text) {
+                            shape.copy(boxWidth = event.newWidth.coerceAtLeast(shape.fontSize * 2f))
+                        } else shape
+                    }
+                    current.copy(shapes = updatedShapes)
+                }
+                // Auto-save is triggered automatically by the state.collect debounce in init {}
+            }
             WhiteBoardEvent.OnTextCommit -> {
                 val currentShape = _state.value.currentShape as? DrawnShape.Text
                 val editingId = _state.value.editingTextId

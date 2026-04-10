@@ -54,6 +54,8 @@ sealed interface WhiteBoardEvent {
     data class OnTextFontFamilyChange(val fontFamily: FontFamily): WhiteBoardEvent
     data class OnTextFontWeightChange(val fontWeight: FontWeight): WhiteBoardEvent
     data class OnTextFontStyleChange(val fontStyle: FontStyle): WhiteBoardEvent
+    // Pillar 2: Sent when user drags LEFT/RIGHT handle of a selected text shape to resize its wrap width
+    data class OnTextBoxWidthChange(val shapeId: String, val newWidth: Float): WhiteBoardEvent
     data object OnTextCommit: WhiteBoardEvent
     data object OnTextCancel: WhiteBoardEvent
 
