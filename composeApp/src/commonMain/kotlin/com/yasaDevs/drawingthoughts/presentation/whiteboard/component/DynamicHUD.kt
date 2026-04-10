@@ -54,9 +54,10 @@ fun DynamicHUD(
     val showEraserHud = state.selectedTool == DrawingTool.ERASER
     val showSelectorHud = state.selectedTool == DrawingTool.SELECTOR && state.selectedShapeId != null
     val showShapeHud = state.selectedTool.isShape()
-    val showTextHud = state.selectedTool == DrawingTool.TEXT
+    val showTextHud = state.selectedTool == DrawingTool.TEXT && !state.isTextEditing
 
-    // Text Tool HUD - Shown separately with its own styling
+    // Text Tool HUD — only shown while the user has TEXT selected but is NOT actively editing.
+    // While editing, the KeyboardAttachedToolbar (IME-anchored) takes over exclusively.
     if (showTextHud) {
         TextToolHUD(
             state = state,
@@ -71,7 +72,7 @@ fun DynamicHUD(
     }
 
     AnimatedVisibility(
-        visible = showDrawingHud || showEraserHud || showSelectorHud || showShapeHud,
+        visible = !state.isTextEditing && (showDrawingHud || showEraserHud || showSelectorHud || showShapeHud),
         enter = fadeIn() + scaleIn() + slideInVertically { it / 2 },
         modifier = modifier
     ) {

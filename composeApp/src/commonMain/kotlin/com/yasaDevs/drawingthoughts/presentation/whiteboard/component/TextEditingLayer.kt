@@ -27,38 +27,50 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.IntOffset
+import com.yasaDevs.drawingthoughts.domain.model.DrawnShape
+import kotlinx.coroutines.delay
+
 /**
- * Full-screen text editing layer that appears when editing text.
- * Provides an immersive editing experience with the keyboard and toolbar.
+ * In-place text editing layer.
+ * Renders a completely transparent BasicTextField floating at the exact X,Y Canvas offset.
  */
 @Composable
 fun TextEditingLayer(
     text: String,
-    fontSize: Float,
-    fontFamily: FontFamily,
-    fontWeight: FontWeight,
-    fontStyle: FontStyle,
+    shape: DrawnShape.Text,
+    zoom: Float,
+    pan: Offset,
     color: androidx.compose.ui.graphics.Color,
     onTextChange: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
-    val interactionSource = remember { MutableInteractionSource() }
 
-    // Request focus when the layer appears
-    LaunchedEffect(Unit) {
+    // Request focus AFTER layout pass so keyboard slides up smoothly (Fix 2: Choppy keyboard).
+    // Keyed on shape.id so re-triggers correctly when switching between text shapes.
+    LaunchedEffect(shape.id) {
+        delay(50L) // give Compose one frame to measure the offset before asking for IME
         focusRequester.requestFocus()
     }
 
-    // Ensure good contrast - use white background for better visibility
-    val backgroundColor = Color.White
+    // Calculate Screen Coordinates precisely based on Canvas viewport states
+    val screenX = (shape.position.x * zoom) + pan.x
+    val screenY = (shape.position.y * zoom) + pan.y
+    val displayFontSize = shape.fontSize * zoom
 
-    // Calculate contrasting text color if needed
-    // Use black text if color is too light, too transparent, or white
-    val displayColor = if (color == Color.White ||
-                           color.alpha < 0.3f ||
-                           (color.red > 0.9f && color.green > 0.9f && color.blue > 0.9f)) {
+    // Use black text if color is too light against standard canvas, or just use what they chose
+    val displayColor = if (color == Color.White && shape.color == Color.White) {
         Color.Black
     } else {
         color
@@ -67,61 +79,36 @@ fun TextEditingLayer(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
-                // Tap outside to dismiss (commit)
-                if (text.isNotBlank()) {
-                    onDismiss()
-                }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        onDismiss()
+                    }
+                )
             },
-        contentAlignment = Alignment.TopCenter // Changed from Center to TopCenter
     ) {
-        // Text input field - positioned at top-middle
         BasicTextField(
             value = text,
             onValueChange = onTextChange,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp, vertical = 48.dp) // Added top padding
-                .focusRequester(focusRequester)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { /* Prevent tap from dismissing */ },
+                .offset { IntOffset(screenX.toInt(), screenY.toInt()) }
+                .width(IntrinsicSize.Min) // Wrap to content
+                .focusRequester(focusRequester),
             textStyle = TextStyle(
-                fontSize = fontSize.sp,
-                fontFamily = fontFamily,
-                fontWeight = fontWeight,
-                fontStyle = fontStyle,
+                fontSize = displayFontSize.sp,
+                fontFamily = shape.fontFamily,
+                fontWeight = shape.fontWeight,
+                fontStyle = shape.fontStyle,
                 color = displayColor,
-                lineHeight = (fontSize * 1.4f).sp,
-                textAlign = TextAlign.Center
+                lineHeight = (displayFontSize * 1.4f).sp,
+                textAlign = TextAlign.Start // Canvas renders from TopLeft usually
             ),
             cursorBrush = SolidColor(displayColor),
-            decorationBox = { innerTextField ->
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (text.isEmpty()) {
-                        Text(
-                            text = "Tap to type...",
-                            style = TextStyle(
-                                fontSize = fontSize.sp,
-                                fontFamily = fontFamily,
-                                fontWeight = fontWeight,
-                                fontStyle = fontStyle,
-                                color = displayColor.copy(alpha = 0.4f),
-                                textAlign = TextAlign.Center
-                            )
-                        )
-                    }
-                    innerTextField()
-                }
-            }
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { onDismiss() }
+            )
         )
     }
 }
+

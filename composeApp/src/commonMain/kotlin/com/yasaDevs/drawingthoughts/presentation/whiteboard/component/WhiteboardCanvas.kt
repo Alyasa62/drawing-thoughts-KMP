@@ -54,6 +54,7 @@ fun WhiteboardCanvas(
     isDragging: Boolean = false,
     dragStartPosition: Offset? = null,
     isCropModeActive: Boolean = false,
+    editingTextId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val zoom = viewportState.zoom
@@ -80,7 +81,9 @@ fun WhiteboardCanvas(
             val isSelected = shape.id == selectionShapeId
             val shapeAlpha = if (isDragging && isSelected) 0.5f else 1f
             if (shape is DrawnShape.Text) {
-                drawTextShape(shape, isSelected, shapeAlpha, textMeasurer)
+                if (shape.id != editingTextId) {
+                    drawTextShape(shape, isSelected, shapeAlpha, textMeasurer)
+                }
             } else {
                 drawSingleShape(shape, isSelected, shapeAlpha, isCropModeActive)
             }
@@ -123,7 +126,9 @@ fun WhiteboardCanvas(
 
         currentShape?.let {
             if (it is DrawnShape.Text) {
-                drawTextShape(it, false, 1f, textMeasurer)
+                if (it.id != editingTextId) {
+                    drawTextShape(it, false, 1f, textMeasurer)
+                }
             } else {
                 drawSingleShape(it, false, 1f, isCropModeActive)
             }

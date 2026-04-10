@@ -72,6 +72,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun WhiteBoardScreen(
@@ -134,6 +139,38 @@ fun WhiteBoardScreen(
         isInteracting = true
         kotlinx.coroutines.delay(2000)
         isInteracting = false
+    }
+
+    // FIX 4: Smart Panning — when a text shape is being edited, slide the canvas up
+    // so the text floats ~100dp above the keyboard/toolbar. Uses Animatable for butter-smooth motion.
+    val imeBottomPx = WindowInsets.ime.asPaddingValues(density).calculateBottomPadding()
+    val imeBottomPxFloat = with(density) { imeBottomPx.toPx() }
+    androidx.compose.runtime.LaunchedEffect(state.editingTextId, imeBottomPxFloat) {
+        val editingShape = (state.currentShape as? com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Text)
+            ?: state.shapes.find { it.id == state.editingTextId } as? com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Text
+
+        if (state.editingTextId != null && editingShape != null) {
+            // Wait for IME to fully animate in before measuring
+            delay(150L)
+            val textScreenY = (editingShape.position.y * viewportState.zoom) + viewportState.pan.y
+            val clearancePx = with(density) { 100.dp.toPx() } // 100dp above toolbar
+            val keyboardTop = actualViewportSize.height - imeBottomPxFloat - clearancePx
+
+            if (textScreenY > keyboardTop) {
+                // Text is behind the keyboard — move pan.y smoothly up
+                val panShift = textScreenY - keyboardTop
+                val animatable = Animatable(viewportState.pan.y)
+                animatable.animateTo(
+                    targetValue = viewportState.pan.y - panShift,
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    )
+                ) {
+                    viewportState.snapTo(viewportState.zoom, Offset(viewportState.pan.x, value))
+                }
+            }
+        }
     }
 
     ModalNavigationDrawer(
@@ -333,6 +370,7 @@ fun WhiteBoardScreen(
                     shapes = state.shapes,
                     currentShape = state.currentShape,
                     selectionShapeId = state.selectedShapeId,
+                    editingTextId = state.editingTextId,
                     viewportState = viewportState,
                     isDragging = state.isDragging,
                     dragStartPosition = state.dragStartPosition,
@@ -536,29 +574,31 @@ fun WhiteBoardScreen(
                     .padding(bottom = 90.dp)
             )
 
-            // --- Text Editing Layer (Full-screen immersive editing) ---
+            // --- Text Editing Layer (In-Place editing) ---
             if (state.isTextEditing) {
                 // Get color from currentShape if it exists (for synchronized state)
                 val textColor = (state.currentShape as? com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Text)?.color
                     ?: state.currentColor
+                val textShape = state.currentShape as? com.yasaDevs.drawingthoughts.domain.model.DrawnShape.Text
 
-                com.yasaDevs.drawingthoughts.presentation.whiteboard.component.TextEditingLayer(
-                    text = state.currentTextContent,
-                    fontSize = state.textFontSize,
-                    fontFamily = state.textFontFamily,
-                    fontWeight = state.textFontWeight,
-                    fontStyle = state.textFontStyle,
-                    color = textColor,
-                    onTextChange = { onEvent(WhiteBoardEvent.OnTextChange(it)) },
-                    onDismiss = {
-                        if (state.currentTextContent.isNotBlank()) {
-                            onEvent(WhiteBoardEvent.OnTextCommit)
-                        } else {
-                            onEvent(WhiteBoardEvent.OnTextCancel)
-                        }
-                    },
-                    modifier = Modifier.zIndex(20f)
-                )
+                if (textShape != null) {
+                    com.yasaDevs.drawingthoughts.presentation.whiteboard.component.TextEditingLayer(
+                        text = state.currentTextContent,
+                        shape = textShape,
+                        zoom = zoom,
+                        pan = pan,
+                        color = textColor,
+                        onTextChange = { onEvent(WhiteBoardEvent.OnTextChange(it)) },
+                        onDismiss = {
+                            if (state.currentTextContent.isNotBlank()) {
+                                onEvent(WhiteBoardEvent.OnTextCommit)
+                            } else {
+                                onEvent(WhiteBoardEvent.OnTextCancel)
+                            }
+                        },
+                        modifier = Modifier.zIndex(20f)
+                    )
+                }
 
                 // Keyboard-attached toolbar (appears above keyboard)
                 // Uses UNIFIED bar - exact same UI as TextToolHUD

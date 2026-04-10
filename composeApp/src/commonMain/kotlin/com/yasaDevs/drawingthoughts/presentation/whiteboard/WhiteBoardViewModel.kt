@@ -211,6 +211,35 @@ class WhiteBoardViewModel : ViewModel() {
             }
 
             is WhiteBoardEvent.OnDrawingToolSelected -> {
+                // FIX 3: Auto-save any in-progress text edit before switching tools
+                val currentState = _state.value
+                if (currentState.isTextEditing) {
+                    val textShape = currentState.currentShape as? DrawnShape.Text
+                    val editingId = currentState.editingTextId
+                    if (textShape != null && textShape.text.isNotBlank()) {
+                        _state.update { current ->
+                            val updatedShapes = if (editingId != null) {
+                                current.shapes.map { s -> if (s.id == editingId) textShape else s }
+                            } else {
+                                current.shapes + textShape
+                            }
+                            current.copy(
+                                shapes = updatedShapes,
+                                isTextEditing = false,
+                                editingTextId = null,
+                                currentTextContent = "",
+                                currentShape = null
+                            )
+                        }
+                    } else {
+                        _state.update { it.copy(
+                            isTextEditing = false,
+                            editingTextId = null,
+                            currentTextContent = "",
+                            currentShape = null
+                        ) }
+                    }
+                }
                 _state.update {
                     it.copy(
                         selectedTool = event.tool,
