@@ -2,6 +2,7 @@ package com.yasaDevs.drawingthoughts.presentation
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
@@ -20,7 +21,7 @@ fun App(imageSaver: PlatformImageSaver) {
         val viewModel = viewModel<WhiteBoardViewModel>()
         val state by viewModel.state.collectAsState()
 
-        Scaffold(modifier = Modifier.Companion.fillMaxSize()) { innerPadding ->
+        Scaffold(modifier = Modifier.fillMaxSize().safeDrawingPadding()) { innerPadding ->
             WhiteBoardScreen(
                 modifier = Modifier.Companion.padding(innerPadding),
                 state = state,
