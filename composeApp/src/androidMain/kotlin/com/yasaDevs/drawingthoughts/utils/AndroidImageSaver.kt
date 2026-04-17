@@ -1,4 +1,4 @@
-package com.yasaDevs.drawingthoughts.utils
+package com.yasadevs.drawingthoughts.utils
 
 import android.content.ContentValues
 import android.content.Context

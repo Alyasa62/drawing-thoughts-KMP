@@ -1,4 +1,4 @@
-package com.yasaDevs.drawingthoughts.data.local
+package com.yasadevs.drawingthoughts.data.local
 
 import android.content.Context
 import androidx.room.Room

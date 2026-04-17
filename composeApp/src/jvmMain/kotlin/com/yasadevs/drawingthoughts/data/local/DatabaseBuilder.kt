@@ -6,9 +6,9 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import java.io.File
 
 /**
- * Desktop Database Builder
+ * JVM Database Builder
  *
- * CRITICAL: Desktop KMP requires explicit SQLite driver configuration.
+ * CRITICAL: JVM target requires explicit SQLite driver configuration.
  * - BundledSQLiteDriver: Provides cross-platform SQLite support
  * - fallbackToDestructiveMigration: Prevents crashes during schema changes (DEV ONLY)
  * - Database stored in system temp directory for persistence across app restarts

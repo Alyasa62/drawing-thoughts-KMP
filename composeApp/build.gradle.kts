@@ -36,7 +36,6 @@ kotlin {
             implementation(compose.materialIconsExtended)
             
             implementation(libs.androidx.room.runtime)
-            implementation(libs.sqlite.bundled)
             implementation(libs.filekit.compose)
         }
         commonTest.dependencies {
@@ -50,11 +49,11 @@ kotlin {
 }
 
 android {
-    namespace = "com.yasaDevs.drawingthoughts"
+    namespace = "com.yasadevs.drawingthoughts"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.yasaDevs.drawingthoughts"
+        applicationId = "com.yasadevs.drawingthoughts"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -92,11 +91,11 @@ room {
 
 compose.desktop {
     application {
-        mainClass = "com.yasaDevs.drawingthoughts.MainKt"
+        mainClass = "com.yasadevs.drawingthoughts.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.yasaDevs.drawingthoughts"
+            packageName = "com.yasadevs.drawingthoughts"
             packageVersion = "1.0.0"
         }
     }

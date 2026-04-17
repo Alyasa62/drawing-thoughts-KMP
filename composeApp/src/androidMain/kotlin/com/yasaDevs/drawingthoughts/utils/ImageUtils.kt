@@ -1,4 +1,4 @@
-package com.yasaDevs.drawingthoughts.utils
+package com.yasadevs.drawingthoughts.utils
 
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.ImageBitmap
