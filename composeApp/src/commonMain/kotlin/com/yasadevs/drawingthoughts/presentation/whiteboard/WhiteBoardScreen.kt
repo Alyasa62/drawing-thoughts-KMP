@@ -62,8 +62,10 @@ import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerType
 import io.github.vinceglb.filekit.core.PickerMode
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -130,7 +132,7 @@ fun WhiteBoardScreen(
     ) { file ->
         file?.let {
             scope.launch {
-                val bytes = it.readBytes()
+                val bytes = withContext(Dispatchers.IO) { it.readBytes() }
                 onEvent(WhiteBoardEvent.OnAddImage(bytes))
             }
         }
@@ -1260,21 +1262,11 @@ private suspend fun exportWholeCanvas(
     imageSaver: com.yasadevs.drawingthoughts.utils.PlatformImageSaver,
     snackbarHostState: androidx.compose.material3.SnackbarHostState
 ) {
-    // Show notification
-    val snackbarJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-        snackbarHostState.showSnackbar(
-            message = "✓ Exporting whole canvas...",
-            duration = androidx.compose.material3.SnackbarDuration.Short
-        )
-    }
-
     try {
         // Calculate bounding box of all shapes
         val bounds = com.yasadevs.drawingthoughts.utils.GeometryHelper.calculateOverallBounds(shapes)
 
         if (bounds == null || shapes.isEmpty()) {
-            // No content to export
-            snackbarJob.cancel()
             snackbarHostState.showSnackbar(
                 message = "⚠ Canvas is empty, nothing to export",
                 duration = androidx.compose.material3.SnackbarDuration.Short
@@ -1323,16 +1315,14 @@ private suspend fun exportWholeCanvas(
             }
         }
 
-        imageSaver.saveImage(bitmap)
+        val saveResult = imageSaver.saveImage(bitmap)
+        saveResult.getOrThrow()
 
-        // Success notification
-        snackbarJob.cancel()
         snackbarHostState.showSnackbar(
             message = "✓ Whole canvas saved (${contentWidth}x${contentHeight}px)",
             duration = androidx.compose.material3.SnackbarDuration.Short
         )
     } catch (e: Exception) {
-        snackbarJob.cancel()
         snackbarHostState.showSnackbar(
             message = "✗ Export failed: ${e.message}",
             duration = androidx.compose.material3.SnackbarDuration.Long
@@ -1358,14 +1348,6 @@ private suspend fun exportVisibleScreen(
     imageSaver: com.yasadevs.drawingthoughts.utils.PlatformImageSaver,
     snackbarHostState: androidx.compose.material3.SnackbarHostState
 ) {
-    // Show notification
-    val snackbarJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-        snackbarHostState.showSnackbar(
-            message = "✓ Exporting visible screen...",
-            duration = androidx.compose.material3.SnackbarDuration.Short
-        )
-    }
-
     try {
         val width = viewportSize.width.toInt().coerceAtLeast(100)
         val height = viewportSize.height.toInt().coerceAtLeast(100)
@@ -1407,16 +1389,14 @@ private suspend fun exportVisibleScreen(
             }
         }
 
-        imageSaver.saveImage(bitmap)
+        val saveResult = imageSaver.saveImage(bitmap)
+        saveResult.getOrThrow()
 
-        // Success notification
-        snackbarJob.cancel()
         snackbarHostState.showSnackbar(
             message = "✓ Visible screen saved (${width}x${height}px)",
             duration = androidx.compose.material3.SnackbarDuration.Short
         )
     } catch (e: Exception) {
-        snackbarJob.cancel()
         snackbarHostState.showSnackbar(
             message = "✗ Export failed: ${e.message}",
             duration = androidx.compose.material3.SnackbarDuration.Long

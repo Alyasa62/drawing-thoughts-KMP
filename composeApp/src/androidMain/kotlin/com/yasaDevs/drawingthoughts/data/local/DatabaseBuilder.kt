@@ -14,6 +14,5 @@ actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     return Room.databaseBuilder<AppDatabase>(
         context = context,
         name = dbFile.absolutePath
-    ).addMigrations(MIGRATION_7_8)
-     .fallbackToDestructiveMigration(true)
+    )
 }

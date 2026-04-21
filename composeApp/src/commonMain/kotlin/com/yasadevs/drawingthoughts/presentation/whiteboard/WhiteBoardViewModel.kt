@@ -5,11 +5,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.yasadevs.drawingthoughts.domain.model.DrawingTool
 import com.yasadevs.drawingthoughts.domain.model.DrawnShape
 import com.yasadevs.drawingthoughts.utils.GeometryHelper.getBounds
@@ -36,25 +40,19 @@ class WhiteBoardViewModel : ViewModel() {
     // Auto-save debounce job
     private var autoSaveJob: Job? = null
 
+    private val database by lazy {
+        com.yasadevs.drawingthoughts.data.local.getDatabaseBuilder().build()
+    }
+
     // Repository Integration
     private val repository: com.yasadevs.drawingthoughts.data.repository.ShapeRepository by lazy {
-        println("ViewModel: Initializing ShapeRepository and building database")
-        val db = com.yasadevs.drawingthoughts.data.local.getDatabaseBuilder().build()
-        println("ViewModel: Database built successfully")
-        com.yasadevs.drawingthoughts.data.repository.ShapeRepository(db.shapeDao())
+        com.yasadevs.drawingthoughts.data.repository.ShapeRepository(database.shapeDao())
     }
-
     private val folderRepository: com.yasadevs.drawingthoughts.data.repository.FolderRepository by lazy {
-        println("ViewModel: Initializing FolderRepository and building database")
-        val db = com.yasadevs.drawingthoughts.data.local.getDatabaseBuilder().build()
-        println("ViewModel: Database built successfully for folders")
-        com.yasadevs.drawingthoughts.data.repository.FolderRepository(db.folderDao())
+        com.yasadevs.drawingthoughts.data.repository.FolderRepository(database.folderDao())
     }
-
     private val canvasSettingsDao: com.yasadevs.drawingthoughts.data.local.dao.CanvasSettingsDao by lazy {
-        println("ViewModel: Initializing CanvasSettingsDao")
-        val db = com.yasadevs.drawingthoughts.data.local.getDatabaseBuilder().build()
-        db.canvasSettingsDao()
+        database.canvasSettingsDao()
     }
 
     init {
@@ -64,7 +62,6 @@ class WhiteBoardViewModel : ViewModel() {
                 val loadedShapes = repository.getShapesByFolder(null)
                 _state.update { it.copy(shapes = loadedShapes) }
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
 
@@ -82,18 +79,25 @@ class WhiteBoardViewModel : ViewModel() {
 
         // Auto-save logic with proper debouncing
         viewModelScope.launch {
-            state.collect { currentState ->
-                // Cancel any pending save
+            state
+                .map { currentState ->
+                    PersistedStateSnapshot(
+                        shapes = currentState.shapes,
+                        selectedFolderId = currentState.selectedFolderId
+                    )
+                }
+                .distinctUntilChanged()
+                .collect {
                 autoSaveJob?.cancel()
-
-                // Start a new save job with delay
                 autoSaveJob = viewModelScope.launch {
-                    kotlinx.coroutines.delay(2000) // Wait 2 seconds
-                    // Save the LATEST state's shapes (read at save time, not collect time)
-                    val latestState = state.value
-                    println("ViewModel: Auto-saving ${latestState.shapes.size} shapes for folder ${latestState.selectedFolderId}")
-                    // CRITICAL: Use folder-specific save to preserve shapes in other folders
-                    repository.saveShapesForFolder(latestState.shapes, latestState.selectedFolderId)
+                    kotlinx.coroutines.delay(750)
+                    val snapshot = PersistedStateSnapshot(
+                        shapes = state.value.shapes,
+                        selectedFolderId = state.value.selectedFolderId
+                    )
+                    withContext(Dispatchers.IO) {
+                        repository.saveShapesForFolder(snapshot.shapes, snapshot.selectedFolderId)
+                    }
                 }
             }
         }
@@ -632,50 +636,7 @@ class WhiteBoardViewModel : ViewModel() {
             }
 
             // Image & Crop
-            is WhiteBoardEvent.OnAddImage -> {
-                val bytes = event.bytes
-                try {
-                    val bitmap = bytes.toImageBitmap()
-                    val zoom = _state.value.zoom
-                    val pan = _state.value.pan
-                    
-                    // Simple center assuming generic viewport size
-                    val startX = (-pan.x / zoom) + 100f
-                    val startY = (-pan.y / zoom) + 100f
-                    
-                    // Cap image display size to prevent massive initial bounds
-                    var imgWidth = bitmap.width.toFloat()
-                    var imgHeight = bitmap.height.toFloat()
-                    if (imgWidth > 1000f || imgHeight > 1000f) {
-                        val scale = 1000f / kotlin.math.max(imgWidth, imgHeight)
-                        imgWidth *= scale
-                        imgHeight *= scale
-                    }
-
-                    val imageId = "img_${kotlin.math.abs(kotlin.random.Random.nextInt())}"
-                    val fileName = "${imageId}_${kotlin.math.abs(kotlin.random.Random.nextLong())}.png"
-                    
-                    // Save to local storage
-                    com.yasadevs.drawingthoughts.utils.LocalFileStorage.saveImage(bytes, fileName)
-
-                    val imageShape = DrawnShape.Image(
-                        id = imageId,
-                        color = Color.Transparent,
-                        strokeWidth = 0f,
-                        drawingTool = DrawingTool.IMAGE,
-                        folderId = _state.value.selectedFolderId,
-                        bitmap = bitmap,
-                        fileName = fileName,
-                        bounds = androidx.compose.ui.geometry.Rect(startX, startY, startX + imgWidth, startY + imgHeight)
-                    )
-                    
-                    addToHistory(_state.value.shapes)
-                    _state.update { it.copy(shapes = it.shapes + imageShape) }
-                    redoStack.clear()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
+            is WhiteBoardEvent.OnAddImage -> handleAddImage(event.bytes)
             WhiteBoardEvent.OnToggleCropMode -> {
                 _state.update { it.copy(isCropModeActive = !it.isCropModeActive) }
             }
@@ -798,9 +759,7 @@ class WhiteBoardViewModel : ViewModel() {
         val color = if (tool == DrawingTool.ERASER) {
             Color.Black // Placeholder, never rendered – eraser uses BlendMode.Clear.
         } else {
-            val toolColor = state.value.currentColor
-            println("updateContinuingShape: tool=$tool, currentColor=$toolColor, toolSettings=${state.value.toolSettings[tool]}")
-            toolColor
+            state.value.currentColor
         }
         val strokeWidth = state.value.currentStrokeWidth
         val folderId = state.value.selectedFolderId
@@ -1154,23 +1113,10 @@ class WhiteBoardViewModel : ViewModel() {
     private fun handleFolderSelect(folderId: String?) {
         viewModelScope.launch {
             try {
-                println("ViewModel: handleFolderSelect - Switching from folder ${_state.value.selectedFolderId} to folder $folderId")
-
-                // Auto-save current shapes to their folder before switching (even if empty)
                 val currentFolderId = _state.value.selectedFolderId
                 val currentShapes = _state.value.shapes
-                println("ViewModel: Current folder has ${currentShapes.size} shapes in memory")
-                currentShapes.forEachIndexed { index, shape ->
-                    println("  Shape $index: folderId=${shape.folderId}, type=${shape::class.simpleName}")
-                }
-
                 repository.saveShapesForFolder(currentShapes, currentFolderId)
-                println("ViewModel: Saved shapes for current folder $currentFolderId")
-
-                // Load shapes for the selected folder
-                println("ViewModel: Loading shapes for new folder $folderId")
                 val loadedShapes = repository.getShapesByFolder(folderId)
-                println("ViewModel: Loaded ${loadedShapes.size} shapes for folder $folderId")
 
                 _state.update {
                     it.copy(
@@ -1180,17 +1126,10 @@ class WhiteBoardViewModel : ViewModel() {
                         currentShape = null
                     )
                 }
-                println("ViewModel: Folder switch complete - now showing ${loadedShapes.size} shapes")
-
-                // Load grid pattern for the new folder
                 loadCanvasSettingsForCurrentFolder()
-
-                // Clear undo/redo stacks when switching folders
                 undoStack.clear()
                 redoStack.clear()
             } catch (e: Exception) {
-                println("ViewModel: ERROR in handleFolderSelect: ${e.message}")
-                e.printStackTrace()
             }
         }
     }
@@ -1206,7 +1145,6 @@ class WhiteBoardViewModel : ViewModel() {
                 folderRepository.insertFolder(newFolder)
                 _state.update { it.copy(showCreateFolderDialog = false) }
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
@@ -1233,20 +1171,15 @@ class WhiteBoardViewModel : ViewModel() {
                 val pattern = com.yasadevs.drawingthoughts.domain.model.CanvasPattern.fromString(settings.selectedPattern)
                 val backgroundColor = androidx.compose.ui.graphics.Color(settings.backgroundColor.toULong())
                 _state.update { it.copy(selectedPattern = pattern, canvasBackgroundColor = backgroundColor) }
-                println("ViewModel: Loaded canvas settings for folder '$folderKey': pattern=$pattern, bgColor=$backgroundColor")
             } else {
-                // No settings saved for this folder yet, use defaults
                 _state.update {
                     it.copy(
                         selectedPattern = com.yasadevs.drawingthoughts.domain.model.CanvasPattern.DEFAULT,
                         canvasBackgroundColor = androidx.compose.ui.graphics.Color.White
                     )
                 }
-                println("ViewModel: No canvas settings for folder '$folderKey', using defaults")
             }
         } catch (e: Exception) {
-            println("ViewModel: Error loading canvas settings: ${e.message}")
-            e.printStackTrace()
         }
     }
 
@@ -1268,10 +1201,7 @@ class WhiteBoardViewModel : ViewModel() {
                     updatedAt = System.currentTimeMillis()
                 )
                 canvasSettingsDao.insertOrUpdateSettings(settingsEntity)
-                println("ViewModel: Saved canvas settings for folder '$folderKey': pattern=$currentPattern, bgColor=$currentBackgroundColor")
             } catch (e: Exception) {
-                println("ViewModel: Error saving canvas settings: ${e.message}")
-                e.printStackTrace()
             }
         }
     }
@@ -1297,33 +1227,65 @@ class WhiteBoardViewModel : ViewModel() {
                     handleFolderSelect(null)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        // CRITICAL: Save all data immediately when ViewModel is destroyed
-        // This ensures data is persisted when the app is closed or activity is destroyed
-        println("ViewModel: onCleared() called - saving data immediately")
-
-        // Cancel pending auto-save to avoid conflicts
         autoSaveJob?.cancel()
+    }
 
-        // Perform immediate synchronous save using runBlocking
-        // This is acceptable in onCleared() as it only happens once during cleanup
-        kotlinx.coroutines.runBlocking {
-            try {
-                val currentState = state.value
-                println("ViewModel: Saving ${currentState.shapes.size} shapes for folder ${currentState.selectedFolderId}")
-                // Save shapes for current folder only
-                repository.saveShapesForFolder(currentState.shapes, currentState.selectedFolderId)
-                println("ViewModel: Save completed successfully")
-            } catch (e: Exception) {
-                println("ViewModel: Error saving in onCleared: ${e.message}")
-                e.printStackTrace()
+    private fun handleAddImage(bytes: ByteArray) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val bitmap = bytes.toImageBitmap()
+                    val imageId = "img_${kotlin.math.abs(kotlin.random.Random.nextInt())}"
+                    val fileName = "${imageId}_${kotlin.math.abs(kotlin.random.Random.nextLong())}.png"
+                    com.yasadevs.drawingthoughts.utils.LocalFileStorage.saveImage(bytes, fileName)
+                    ImportedImage(bitmap = bitmap, fileName = fileName, imageId = imageId)
+                }
+            }.onSuccess { importedImage ->
+                val zoom = _state.value.zoom
+                val pan = _state.value.pan
+                val startX = (-pan.x / zoom) + 100f
+                val startY = (-pan.y / zoom) + 100f
+
+                var imgWidth = importedImage.bitmap.width.toFloat()
+                var imgHeight = importedImage.bitmap.height.toFloat()
+                if (imgWidth > 1000f || imgHeight > 1000f) {
+                    val scale = 1000f / kotlin.math.max(imgWidth, imgHeight)
+                    imgWidth *= scale
+                    imgHeight *= scale
+                }
+
+                val imageShape = DrawnShape.Image(
+                    id = importedImage.imageId,
+                    color = Color.Transparent,
+                    strokeWidth = 0f,
+                    drawingTool = DrawingTool.IMAGE,
+                    folderId = _state.value.selectedFolderId,
+                    bitmap = importedImage.bitmap,
+                    fileName = importedImage.fileName,
+                    bounds = androidx.compose.ui.geometry.Rect(startX, startY, startX + imgWidth, startY + imgHeight)
+                )
+
+                addToHistory(_state.value.shapes)
+                _state.update { it.copy(shapes = it.shapes + imageShape) }
+                redoStack.clear()
             }
         }
     }
+
+    private data class PersistedStateSnapshot(
+        val shapes: List<DrawnShape>,
+        val selectedFolderId: String?
+    )
+
+    private data class ImportedImage(
+        val bitmap: androidx.compose.ui.graphics.ImageBitmap,
+        val fileName: String,
+        val imageId: String
+    )
 }

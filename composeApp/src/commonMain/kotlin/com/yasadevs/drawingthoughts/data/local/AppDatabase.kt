@@ -18,7 +18,7 @@ import com.yasadevs.drawingthoughts.data.local.entity.ShapeEntity
         CanvasSettingsEntity::class
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {

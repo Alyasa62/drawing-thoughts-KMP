@@ -10,7 +10,6 @@ import java.io.File
  *
  * CRITICAL: JVM target requires explicit SQLite driver configuration.
  * - BundledSQLiteDriver: Provides cross-platform SQLite support
- * - fallbackToDestructiveMigration: Prevents crashes during schema changes (DEV ONLY)
  * - Database stored in system temp directory for persistence across app restarts
  */
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
@@ -19,5 +18,4 @@ actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
         name = dbFile.absolutePath,
     )
         .setDriver(BundledSQLiteDriver())
-        .fallbackToDestructiveMigration(true)
 }
