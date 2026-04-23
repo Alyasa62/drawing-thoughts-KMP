@@ -82,8 +82,8 @@ android {
         minSdk = 24
         targetSdk = 35
 
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -184,7 +184,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.yasadevs.drawingthoughts"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.2"
         }
     }
 }

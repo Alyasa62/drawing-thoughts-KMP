@@ -7,14 +7,15 @@ import java.awt.datatransfer.StringSelection
 
 @Composable
 actual fun ShareHandler(): (String) -> Unit {
+    val logTag = "ShareHandler"
     return remember {
         { text: String ->
             try {
                 val selection = StringSelection(text)
                 Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
-                println("Copied to clipboard for sharing: $text")
+                AppLogger.d(logTag, "Copied text to clipboard for sharing")
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLogger.e(logTag, "Failed to copy shared text to clipboard", e)
             }
         }
     }

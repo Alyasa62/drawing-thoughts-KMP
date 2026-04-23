@@ -653,7 +653,7 @@ class WhiteBoardViewModel : ViewModel() {
 
     private fun performUndo() {
         if (undoStack.isNotEmpty()) {
-            val previousShapes = undoStack.removeLast()
+            val previousShapes = undoStack.removeAt(undoStack.lastIndex)
             redoStack.add(state.value.shapes)
             _state.update { it.copy(shapes = previousShapes) }
         }
@@ -661,7 +661,7 @@ class WhiteBoardViewModel : ViewModel() {
 
     private fun performRedo() {
         if (redoStack.isNotEmpty()) {
-            val nextShapes = redoStack.removeLast()
+            val nextShapes = redoStack.removeAt(redoStack.lastIndex)
             addToHistory(state.value.shapes) // Push current to undo before redoing
             _state.update { it.copy(shapes = nextShapes) }
         }
